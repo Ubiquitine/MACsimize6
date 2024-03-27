@@ -1,0 +1,25 @@
+{
+    "KPlugin": {
+        "Name": "MACsimize6",
+        "Description": "Move fullscreen/maximized window to a virtual desktop",
+        "Icon": "preferences-desktop-virtual",
+
+        "Authors": [
+            {
+                "Name": "Berlioz-Ubiquitus"
+            },
+            {
+                "Name": "bainonline"
+            }
+        ],
+        "Id": "macsimize6",
+        "Version": "0.1.2",
+        "License": "GPLv3",
+        "EnabledByDefault": false
+    },
+    "X-Plasma-API": "javascript",
+    "X-KDE-ConfigModule": "kwin/effects/configs/kcm_kwin4_genericscripted",
+    "X-Plasma-MainScript": "code/main.js",
+    "KPackageStructure": "KWin/Script"
+}
+
