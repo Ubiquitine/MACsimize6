@@ -1,11 +1,12 @@
 function log(msg) {
-    //print("MACsimize6: " + msg);
+    // print("MACsimize6: " + msg);
 }
 
 var handleFullscreen = readConfig("handleFullscreen", true);
 var handleMaximized = readConfig("handleMaximized", true);
 
 const savedDesktops = {};
+const savedModes = {};
 
 function getNextDesktopNumber() {
     log("Getting next desktop number " + workspace.currentDesktop);
@@ -21,15 +22,20 @@ function getNextDesktopNumber() {
 function moveToNewDesktop(window) {
     let windowName = window.resourceName.toString();
     let windowId = window.internalId.toString();
-    log("Creating new desktop with name : " | windowName);
-    let newDesktopNumber = getNextDesktopNumber();
-    workspace.createDesktop(newDesktopNumber, windowName);
-    newDesktop = workspace.desktops[newDesktopNumber];
-    savedDesktops[windowId] = window.desktops;
-    log("Saved desktops fot window " + windowId + ": " + JSON.stringify(savedDesktops[windowId]))
-    ds = [newDesktop]
-    window.desktops = ds
-    workspace.currentDesktop = newDesktop;
+    if (windowId in savedDesktops) {
+        log("Window: " + windowId + " is already on separate desktop");
+        return ;
+    } else {
+        log("Creating new desktop with name : " | windowName);
+        let newDesktopNumber = getNextDesktopNumber();
+        workspace.createDesktop(newDesktopNumber, windowName);
+        newDesktop = workspace.desktops[newDesktopNumber];
+        savedDesktops[windowId] = window.desktops;
+        log("Saved desktops fot window " + windowId + ": " + JSON.stringify(savedDesktops[windowId]))
+        ds = [newDesktop]
+        window.desktops = ds
+        workspace.currentDesktop = newDesktop;
+    }
 }
 
 function sanitizeDesktops(desktops) {
@@ -64,10 +70,11 @@ function restoreDesktop(window) {
     let currentDesktop = window.desktops[0];
     log(currentDesktop);
     if (windowId in savedDesktops ) {
-        log("Found saved desktops for: " + windowId)
-        let desktops = sanitizeDesktops(savedDesktops[windowId])
+        log("Found saved desktops for: " + windowId);
+        let desktops = sanitizeDesktops(savedDesktops[windowId]);
         log("Saved desktops for window: " + windowId + ": " + JSON.stringify(savedDesktops[windowId]) + " before restore");
-        delete savedDesktops[windowId]
+        delete savedDesktops[windowId];
+        delete savedModes[windowId];
         window.desktops = desktops;
         cleanDesktop(currentDesktop);
         workspace.currentDesktop = window.desktops[0];
@@ -85,6 +92,9 @@ function fullScreenChanged(window) {
     log("Window : " + windowId + " fullscreen : " + window.fullScreen);
     if (window.fullScreen) {
         moveToNewDesktop(window);
+    } else if (windowId in savedModes && savedModes[windowId] == 3){
+        log("window: " + windowId + "is still maximized.");
+        return;
     } else {
         restoreDesktop(window);
     }
@@ -92,6 +102,7 @@ function fullScreenChanged(window) {
 
 function maximizedStateChanged(window, mode) {
     let windowId = window.internalId.toString();
+    savedModes[windowId] = mode;
     log("Window : " + windowId + " maximized mode : " + mode);
     if (mode == 3) {
         moveToNewDesktop(window);
