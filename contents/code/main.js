@@ -32,7 +32,7 @@ function moveToNewDesktop(window) {
         workspace.createDesktop(newDesktopNumber, windowName);
         newDesktop = workspace.desktops[newDesktopNumber];
         savedDesktops[windowId] = window.desktops;
-        log("Saved desktops fot window " + windowId + ": " + JSON.stringify(savedDesktops[windowId]))
+        log("Saved desktops for window " + windowId + ": " + JSON.stringify(savedDesktops[windowId]))
         ds = [newDesktop]
         window.desktops = ds
         workspace.currentDesktop = newDesktop;
@@ -42,7 +42,7 @@ function moveToNewDesktop(window) {
 function sanitizeDesktops(desktops) {
     log("Sanitizing desktops: " + JSON.stringify(desktops))
     let sanitizedDesktops = desktops.filter(value => Object.keys(value).length !== 0);
-    log("sanitized Desktops: " + JSON.stringify(sanitizedDesktops))
+    log("Sanitized Desktops: " + JSON.stringify(sanitizedDesktops))
     if (sanitizedDesktops.length < 1) {
         sanitizedDesktops = [workspace.desktops[0]];
     }
@@ -69,19 +69,16 @@ function restoreDesktop(window) {
     let windowId = window.internalId.toString();
     log("Restoring desktops for " + windowId);
     let currentDesktop = window.desktops[0];
-    log(currentDesktop);
+    log("Current desktop: " + JSON.stringify(currentDesktop));
     if (windowId in savedDesktops ) {
         log("Found saved desktops for: " + windowId);
         let desktops = sanitizeDesktops(savedDesktops[windowId]);
         log("Saved desktops for window: " + windowId + ": " + JSON.stringify(savedDesktops[windowId]) + " before restore");
         delete savedDesktops[windowId];
-        delete savedModes[windowId];
         window.desktops = desktops;
         cleanDesktop(currentDesktop);
         workspace.currentDesktop = window.desktops[0];
         workspace.removeDesktop(currentDesktop);
-        workspace.raiseWindow(window);
-        log("Saved desktops for window: " + windowId + ": " + JSON.stringify(savedDesktops[windowId]) + " after restore");
     } else {
         log(windowId + " has no saved desktops. Not restoring")
     }
@@ -90,7 +87,7 @@ function restoreDesktop(window) {
 
 function fullScreenChanged(window) {
     let windowId = window.internalId.toString();
-    log("Window : " + windowId + " fullscreen : " + window.fullScreen);
+    log("Window : " + windowId + " full-screen : " + window.fullScreen);
     if (window.fullScreen) {
         moveToNewDesktop(window);
     } else if (windowId in savedModes && savedModes[windowId] == 3){
@@ -98,6 +95,7 @@ function fullScreenChanged(window) {
         return;
     } else {
         restoreDesktop(window);
+        workspace.raiseWindow(window);
     }
 }
 
@@ -109,14 +107,29 @@ function maximizedStateChanged(window, mode) {
         moveToNewDesktop(window);
     } else {
         restoreDesktop(window);
+        workspace.raiseWindow(window);
+    }
+}
+
+function minimizedStateChanged(window) {
+    let windowId = window.internalId.toString();
+    if (window.minimized) {
+        log("window: " + windowId + " is minimized. Restoring desktops");
+        restoreDesktop(window);
+    } else if (windowId in savedModes && savedModes[windowId] == 3) {
+        log("window: " + windowId + " is un-minimized and was maximized before.");
+        moveToNewDesktop(window);
+    } else {
+        log("Nothing to do for window " + windowId);
+        return;
     }
 }
 
 function install() {
-    log("Installing handler for workspace windowActivated");
+    log("Installing handler for workspace to track activated windows");
     workspace.windowActivated.connect(window => {
-        // Check if the window is normal
         let windowId = window.internalId.toString();
+        // Check if the window is normal and can be maximized and full-screened.
         if (window.normalWindow && window.fullScreenable && window.maximizable){
             if (windowId in savedHandlers) {
                 log(windowId + " is already being tracked");
@@ -130,10 +143,14 @@ function install() {
                     log(windowId + ": maximized changed");
                     maximizedStateChanged(window, mode);
                 });
+                window.minimizedChanged.connect(function () {
+                    log(windowId + ": minimized changed");
+                    minimizedStateChanged(window);
+                });
             }
             if (handleFullscreen) {
                 window.fullScreenChanged.connect(function () {
-                    log(windowId + ": fullscreen changed");
+                    log(windowId + ": full-screen changed");
                     fullScreenChanged(window);
                 });
             }
@@ -141,10 +158,11 @@ function install() {
                 log(windowId + ": closed");
                 restoreDesktop(window);
                 delete savedHandlers[windowId];
+                delete savedModes[windowId];
             });
         }
     });
-    log("Workspacke handler installed");
+    log("Workspace handler installed");
 }
 
 
