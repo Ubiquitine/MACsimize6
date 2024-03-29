@@ -7,6 +7,7 @@ var handleMaximized = readConfig("handleMaximized", true);
 
 const savedDesktops = {};
 const savedModes = {};
+const savedHandlers = {};
 
 function getNextDesktopNumber() {
     log("Getting next desktop number " + workspace.currentDesktop);
@@ -117,6 +118,12 @@ function install() {
         // Check if the window is normal
         let windowId = window.internalId.toString();
         if (window.normalWindow && window.fullScreenable && window.maximizable){
+            if (windowId in savedHandlers) {
+                log(windowId + " is already being tracked");
+                return;
+            } else {
+                savedHandlers[windowId] = window.resourceName ;
+            }
             log("Installing handles for " + windowId);
             if (handleMaximized) {
                 window.maximizedAboutToChange.connect(function (mode) {
@@ -133,6 +140,7 @@ function install() {
             window.closed.connect(function () {
                 log(windowId + ": closed");
                 restoreDesktop(window);
+                delete savedHandlers[windowId];
             });
         }
     });
