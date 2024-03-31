@@ -128,9 +128,9 @@ function minimizedStateChanged(window) {
 function install() {
     log("Installing handler for workspace to track activated windows");
     workspace.windowActivated.connect(window => {
-        let windowId = window.internalId.toString();
         // Check if the window is normal and can be maximized and full-screened.
-        if (window.normalWindow && window.fullScreenable && window.maximizable){
+        if (window !== null && window.normalWindow && window.fullScreenable && window.maximizable){
+            let windowId = window.internalId.toString();
             if (windowId in savedHandlers) {
                 log(windowId + " is already being tracked");
                 return;
