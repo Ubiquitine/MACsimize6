@@ -4,6 +4,7 @@ function log(msg) {
 
 var handleFullscreen = readConfig("handleFullscreen", true);
 var handleMaximized = readConfig("handleMaximized", true);
+var moveToLast = readConfig("moveToLast", false);
 
 const savedDesktops = {};
 const savedModes = {};
@@ -28,7 +29,12 @@ function moveToNewDesktop(window) {
         return ;
     } else {
         log("Creating new desktop with name : " | windowName);
-        let newDesktopNumber = getNextDesktopNumber();
+        let newDesktopNumber = -1;
+        if (moveToLast) {
+            newDesktopNumber = workspace.desktops.length;
+        } else {
+            newDesktopNumber = getNextDesktopNumber();
+        }
         workspace.createDesktop(newDesktopNumber, windowName);
         newDesktop = workspace.desktops[newDesktopNumber];
         savedDesktops[windowId] = window.desktops;

@@ -11,6 +11,9 @@
     <entry name="handleMaximized" type="bool">
       <default>true</default>
     </entry>
+    <entry name="moveToLast" type="bool">
+      <default>false</default>
+    </entry>
   </group>
 
 </kcfg>
