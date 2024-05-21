@@ -22,7 +22,7 @@ function getNextDesktopNumber() {
 }
 
 function moveToNewDesktop(window) {
-    let windowName = window.resourceName.toString();
+    let windowName = window.caption.toString();
     let windowId = window.internalId.toString();
     if (windowId in savedDesktops) {
         log("Window: " + windowId + " is already on separate desktop");
@@ -131,6 +131,15 @@ function minimizedStateChanged(window) {
     }
 }
 
+function windowCaptionChanged(window) {
+    let windowId = window.internalId.toString();
+    let windowName = window.caption.toString();
+    if (windowId in savedDesktops ) {
+        log("Updating desktop name for " + windowId);
+        window.desktops[0].name = windowName;
+    }
+}
+
 function install() {
     log("Installing handler for workspace to track activated windows");
     workspace.windowActivated.connect(window => {
@@ -160,6 +169,13 @@ function install() {
                     fullScreenChanged(window);
                 });
             }
+            if ((handleFullscreen && window.fullScreenable) || (handleMaximized && window.maximizable)) {
+                window.captionChanged.connect(function () {
+                    log(windowId + ": Caption changed");
+                    windowCaptionChanged(window);
+                });
+            }
+
             window.closed.connect(function () {
                 log(windowId + ": closed");
                 restoreDesktop(window);
