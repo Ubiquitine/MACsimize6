@@ -140,48 +140,61 @@ function windowCaptionChanged(window) {
     }
 }
 
+function installWindowHandlers(window) {
+    // Check if the window is normal and can be maximized and full-screened.
+    if (window !== null && window.normalWindow && ( window.fullScreenable || window.maximizable ) ){
+        let windowId = window.internalId.toString();
+        if (windowId in savedHandlers) {
+            log(windowId + " is already being tracked");
+            return;
+        } else {
+            savedHandlers[windowId] = window.resourceName ;
+        }
+        log("Installing handles for " + windowId);
+        if (handleMaximized && window.maximizable) {
+            window.maximizedAboutToChange.connect(function (mode) {
+                log(windowId + ": maximized changed");
+                maximizedStateChanged(window, mode);
+            });
+            window.minimizedChanged.connect(function () {
+                log(windowId + ": minimized changed");
+                minimizedStateChanged(window);
+            });
+        }
+        if (handleFullscreen && window.fullScreenable) {
+            window.fullScreenChanged.connect(function () {
+                log(windowId + ": full-screen changed");
+                fullScreenChanged(window);
+            });
+        }
+        if ((handleFullscreen && window.fullScreenable) || (handleMaximized && window.maximizable)) {
+            window.captionChanged.connect(function () {
+                log(windowId + ": Caption changed");
+                windowCaptionChanged(window);
+            });
+        }
+
+        window.closed.connect(function () {
+            log(windowId + ": closed");
+            restoreDesktop(window);
+            delete savedHandlers[windowId];
+            delete savedModes[windowId];
+        });
+    }
+}
+
 function install() {
     log("Installing handler for workspace to track activated windows");
     workspace.windowActivated.connect(window => {
-        // Check if the window is normal and can be maximized and full-screened.
-        if (window !== null && window.normalWindow && ( window.fullScreenable || window.maximizable ) ){
-            let windowId = window.internalId.toString();
-            if (windowId in savedHandlers) {
-                log(windowId + " is already being tracked");
-                return;
-            } else {
-                savedHandlers[windowId] = window.resourceName ;
-            }
-            log("Installing handles for " + windowId);
-            if (handleMaximized && window.maximizable) {
-                window.maximizedAboutToChange.connect(function (mode) {
-                    log(windowId + ": maximized changed");
-                    maximizedStateChanged(window, mode);
-                });
-                window.minimizedChanged.connect(function () {
-                    log(windowId + ": minimized changed");
-                    minimizedStateChanged(window);
-                });
-            }
-            if (handleFullscreen && window.fullScreenable) {
-                window.fullScreenChanged.connect(function () {
-                    log(windowId + ": full-screen changed");
-                    fullScreenChanged(window);
-                });
-            }
-            if ((handleFullscreen && window.fullScreenable) || (handleMaximized && window.maximizable)) {
-                window.captionChanged.connect(function () {
-                    log(windowId + ": Caption changed");
-                    windowCaptionChanged(window);
-                });
-            }
-
-            window.closed.connect(function () {
-                log(windowId + ": closed");
-                restoreDesktop(window);
-                delete savedHandlers[windowId];
-                delete savedModes[windowId];
-            });
+        installWindowHandlers(window)
+    });
+    workspace.windowAdded.connect(window => {
+        installWindowHandlers(window);
+        // Get worksace area or maximized windows
+        var area = workspace.clientArea(KWin.MaximizeArea, window);
+        // If window is "maximized" move it a new desktop right away
+        if(window.width + 1 >= area.width && window.height + 1 >= area.height && handleMaximized) {
+            moveToNewDesktop(window);
         }
     });
     log("Workspace handler installed");
