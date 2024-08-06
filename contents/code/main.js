@@ -10,6 +10,20 @@ const savedDesktops = {};
 const savedModes = {};
 const savedHandlers = {};
 
+const alwaysSkippedWindows = ['ksmserver-logout-greeter', 'ksmserver',
+    'kscreenlocker_greet', 'plasmashell', 'latte-dock', 'lattedock'];
+
+function shouldSkip(window) {
+    const windowClass = window.resourceClass.toString();
+    if (alwaysSkippedWindows.indexOf(windowClass) != -1) {
+    log(`Skipped: ${windowClass}`);
+        return true;
+    }
+    log(`Handled: ${windowClass}`);
+    return false;
+}
+
+
 function getNextDesktopNumber() {
     log("Getting next desktop number " + workspace.currentDesktop);
     for (i = 0; i < workspace.desktops.length; i++) {
@@ -186,9 +200,15 @@ function installWindowHandlers(window) {
 function install() {
     log("Installing handler for workspace to track activated windows");
     workspace.windowActivated.connect(window => {
+        if (shouldSkip(window)) {
+            return;
+        }
         installWindowHandlers(window)
     });
     workspace.windowAdded.connect(window => {
+        if (shouldSkip(window)) {
+            return;
+        }
         installWindowHandlers(window);
         // Get worksace area or maximized windows
         var area = workspace.clientArea(KWin.MaximizeArea, window);
