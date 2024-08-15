@@ -14,6 +14,9 @@
     <entry name="moveToLast" type="bool">
       <default>false</default>
     </entry>
+    <entry name="SkipWindows" type="string">
+      <default>kwin_wayland,ksmserver-logout-greeter,ksmserver,kscreenlocker_greet,org.kde.plasmashell,plasmashell,latte-dock,lattedock,org.kde.spectacle</default>
+    </entry>
   </group>
 
 </kcfg>
