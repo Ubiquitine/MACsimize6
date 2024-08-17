@@ -10,11 +10,17 @@ const savedDesktops = {};
 const savedModes = {};
 const savedHandlers = {};
 
-const alwaysSkippedWindows = ['ksmserver-logout-greeter', 'ksmserver',
-    'kscreenlocker_greet', 'plasmashell', 'latte-dock', 'lattedock'];
+const systemSkippedWindows = ['kwin_wayland', 'ksmserver-logout-greeter', 'ksmserver',
+    'kscreenlocker_greet', 'plasmashell', 'org.kde.plasmashell', 'krunner'];
+var configSkippedWindows = readConfig("SkipWindows", "lattedock, latte-dock, org.kde.spectacle").toString().toLowerCase().split(/,\s*/);
+var alwaysSkippedWindows = systemSkippedWindows.concat(configSkippedWindows)
 
 function shouldSkip(window) {
     const windowClass = window.resourceClass.toString();
+    if (!windowClass) {
+    log(`Skipped: Null`);
+        return true;
+    }
     if (alwaysSkippedWindows.indexOf(windowClass) != -1) {
     log(`Skipped: ${windowClass}`);
         return true;
