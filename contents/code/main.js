@@ -11,7 +11,7 @@ const savedModes = {};
 const savedHandlers = {};
 
 const systemSkippedWindows = ['kwin_wayland', 'ksmserver-logout-greeter', 'ksmserver',
-    'kscreenlocker_greet', 'ksplash', 'ksplashqml' 'plasmashell', 'org.kde.plasmashell', 'krunner'];
+    'kscreenlocker_greet', 'ksplash', 'ksplashqml', 'plasmashell', 'org.kde.plasmashell', 'krunner'];
 var configSkippedWindows = readConfig("SkipWindows", "lattedock, latte-dock, org.kde.spectacle").toString().toLowerCase().split(/,\s*/);
 var alwaysSkippedWindows = systemSkippedWindows.concat(configSkippedWindows)
 
