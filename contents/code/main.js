@@ -162,7 +162,7 @@ function windowCaptionChanged(window) {
 
 function installWindowHandlers(window) {
     // Check if the window is normal and can be maximized and full-screened.
-    if (window !== null && window.normalWindow && ( window.fullScreenable || window.maximizable ) ){
+    if (window !== null && window.normalWindow && ! window.skipTaskbar && ! window.splash && ( window.fullScreenable || window.maximizable ) ){
         let windowId = window.internalId.toString();
         if (windowId in savedHandlers) {
             log(windowId + " is already being tracked");
