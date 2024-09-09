@@ -10,7 +10,7 @@ const savedDesktops = {};
 const savedModes = {};
 const savedHandlers = {};
 
-const systemSkippedWindows = ['kwin_wayland', 'ksmserver-logout-greeter', 'ksmserver',
+const systemSkippedWindows = ['kwin', 'kwin_wayland', 'ksmserver-logout-greeter', 'ksmserver',
     'kscreenlocker_greet', 'ksplash', 'ksplashqml', 'plasmashell', 'org.kde.plasmashell', 'krunner'];
 var configSkippedWindows = readConfig("SkipWindows", "lattedock, latte-dock, org.kde.spectacle").toString().toLowerCase().split(/,\s*/);
 var alwaysSkippedWindows = systemSkippedWindows.concat(configSkippedWindows)
@@ -162,7 +162,7 @@ function windowCaptionChanged(window) {
 
 function installWindowHandlers(window) {
     // Check if the window is normal and can be maximized and full-screened.
-    if (window !== null && window.normalWindow && ( window.fullScreenable || window.maximizable ) ){
+    if (window !== null && window.normalWindow && ! window.skipTaskbar && ! window.splash && ( window.fullScreenable || window.maximizable ) ){
         let windowId = window.internalId.toString();
         if (windowId in savedHandlers) {
             log(windowId + " is already being tracked");
