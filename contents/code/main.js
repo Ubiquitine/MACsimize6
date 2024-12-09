@@ -5,31 +5,31 @@ function log(msg) {
 var handleFullscreen = readConfig("handleFullscreen", true);
 var handleMaximized = readConfig("handleMaximized", true);
 var moveToLast = readConfig("moveToLast", false);
+var enableIfOnlyOne = readConfig("enableIfOnlyOne", false);
 
 const savedDesktops = {};
 const savedModes = {};
 const savedHandlers = {};
 
 const systemSkippedWindows = ['kwin', 'kwin_wayland', 'ksmserver-logout-greeter', 'ksmserver',
-    'kscreenlocker_greet', 'ksplash', 'ksplashqml', 'plasmashell', 'org.kde.plasmashell', 'krunner'];
+'kscreenlocker_greet', 'ksplash', 'ksplashqml', 'plasmashell', 'org.kde.plasmashell', 'krunner'];
 var configSkippedWindows = readConfig("SkipWindows", "lattedock, latte-dock, org.kde.spectacle").toString().toLowerCase().split(/,\s*/);
 var alwaysSkippedWindows = systemSkippedWindows.concat(configSkippedWindows)
 
 function shouldSkip(window) {
     const windowClass = (window.resourceClass.toString() || "").toLowerCase();
     if (!windowClass) {
-    log(`Skipped: Null`);
+        log(`Skipped: Null`);
         return true;
     }
-    
+
     if (alwaysSkippedWindows.indexOf(windowClass) != -1) {
-    log(`Skipped: ${windowClass}`);
+        log(`Skipped: ${windowClass}`);
         return true;
     }
     log(`Handled: ${windowClass}`);
     return false;
 }
-
 
 function getNextDesktopNumber() {
     log("Getting next desktop number " + workspace.currentDesktop);
@@ -45,9 +45,16 @@ function getNextDesktopNumber() {
 function moveToNewDesktop(window) {
     let windowName = window.caption.toString();
     let windowId = window.internalId.toString();
-    if (windowId in savedDesktops) {
+    let numMonitors = workspace.screens.length;
+
+    log("enableIfOnlyOne: " + enableIfOnlyOne);
+    if (enableIfOnlyOne && numMonitors > 1) {
+        log("enableIfOnlyOne: " + enableIfOnlyOne);
+        log("Detected " + numMonitors + " Monitors");
+        return;
+    } else if (windowId in savedDesktops) {
         log("Window: " + windowId + " is already on separate desktop");
-        return ;
+        return;
     } else {
         log("Creating new desktop with name : " | windowName);
         let newDesktopNumber = -1;
@@ -226,7 +233,6 @@ function install() {
     });
     log("Workspace handler installed");
 }
-
 
 log("Initializing...");
 install();

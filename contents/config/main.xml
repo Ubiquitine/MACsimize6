@@ -14,6 +14,9 @@
     <entry name="moveToLast" type="bool">
       <default>false</default>
     </entry>
+    <entry name="enableIfOnlyOne" type="bool">
+      <default>false</default>
+    </entry>
     <entry name="SkipWindows" type="string">
       <default>lattedock, latte-dock, org.kde.spectacle</default>
     </entry>
