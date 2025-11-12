@@ -175,12 +175,18 @@ function togglePanelVisibility() {
     if ( workspace.currentDesktop !== defaultDesktop) {
         panelVisibility = 'dodgewindows';
     }
+    var script = `
+    for (let id of panelIds) {
+        let p = panelById(id);
+        p.hiding = "${panelVisibility}";
+    }
+    `;
     callDBus(
         "org.kde.plasmashell",
         "/PlasmaShell",
         "org.kde.PlasmaShell",
         "evaluateScript",
-        "p = panelById(panelIds[0]); p.hiding = '" + panelVisibility + "';"
+        script
     );
 }
 
