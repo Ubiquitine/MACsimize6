@@ -57,7 +57,7 @@
    <item row="4" column="0">
      <widget class="QCheckBox" name="kcfg_enablePanelVisibility">
        <property name="text">
-         <string>Toggle main panel visbility when switching between desktops</string>
+         <string>Toggle main panel visbility</string>
        </property>
        <property name="checked">
          <bool>true</bool>
