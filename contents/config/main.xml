@@ -17,6 +17,9 @@
     <entry name="enableIfOnlyOne" type="bool">
       <default>false</default>
     </entry>
+    <entry name="enablePanelVisibility" type="bool">
+      <default>true</default>
+    </entry>
     <entry name="SkipWindows" type="string">
       <default>lattedock, latte-dock, org.kde.spectacle</default>
     </entry>

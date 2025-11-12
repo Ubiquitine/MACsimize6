@@ -6,6 +6,7 @@ var handleFullscreen = readConfig("handleFullscreen", true);
 var handleMaximized = readConfig("handleMaximized", true);
 var moveToLast = readConfig("moveToLast", false);
 var enableIfOnlyOne = readConfig("enableIfOnlyOne", false);
+var enablePanelVisibility = readConfig("enablePanelVisibility", true);
 
 const savedDesktops = {};
 const savedModes = {};
@@ -168,6 +169,21 @@ function windowCaptionChanged(window) {
     }
 }
 
+function togglePanelVisibility() {
+    let defaultDesktop = workspace.desktops[0];
+    let panelVisibility = 'none';
+    if ( workspace.currentDesktop !== defaultDesktop) {
+        panelVisibility = 'dodgewindows';
+    }
+    callDBus(
+        "org.kde.plasmashell",
+        "/PlasmaShell",
+        "org.kde.PlasmaShell",
+        "evaluateScript",
+        "p = panelById(panelIds[0]); p.hiding = '" + panelVisibility + "';"
+    );
+}
+
 function installWindowHandlers(window) {
     // Check if the window is normal and can be maximized and full-screened.
     if (window !== null && window.normalWindow && ! window.skipTaskbar && ! window.splash && ( window.fullScreenable || window.maximizable ) ){
@@ -231,6 +247,10 @@ function install() {
             moveToNewDesktop(window);
         }
     });
+
+    if (enablePanelVisibility) {
+        workspace.currentDesktopChanged.connect(togglePanelVisibility)
+    }
     log("Workspace handler installed");
 }
 
