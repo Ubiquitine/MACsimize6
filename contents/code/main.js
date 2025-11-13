@@ -14,7 +14,7 @@ const savedHandlers = {};
 
 const systemSkippedWindows = ['kwin', 'kwin_wayland', 'ksmserver-logout-greeter', 'ksmserver',
 'kscreenlocker_greet', 'ksplash', 'ksplashqml', 'plasmashell', 'org.kde.plasmashell', 'krunner'];
-var configSkippedWindows = readConfig("SkipWindows", "lattedock, latte-dock, org.kde.spectacle").toString().toLowerCase().split(/,\s*/);
+var configSkippedWindows = readConfig("SkipWindows", "lattedock, latte-dock, org.kde.spectacle, org.kde.yakuake").toString().toLowerCase().split(/,\s*/);
 var alwaysSkippedWindows = systemSkippedWindows.concat(configSkippedWindows)
 
 function shouldSkip(window) {
@@ -66,7 +66,8 @@ function moveToNewDesktop(window) {
         }
         workspace.createDesktop(newDesktopNumber, windowName);
         newDesktop = workspace.desktops[newDesktopNumber];
-        savedDesktops[windowId] = window.desktops;
+        // Always save the main desktop (first desktop) for restoration
+        savedDesktops[windowId] = [workspace.desktops[0]];
         log("Saved desktops for window " + windowId + ": " + JSON.stringify(savedDesktops[windowId]))
         ds = [newDesktop]
         window.desktops = ds
@@ -242,15 +243,48 @@ function install() {
         installWindowHandlers(window)
     });
     workspace.windowAdded.connect(window => {
+        // Check if window should be skipped (ignored list)
         if (shouldSkip(window)) {
+            return; // Skipped windows can open anywhere without restrictions
+        }
+        
+        // Handle transient windows (dialogs, toolbars, etc.) - logic requirement #3
+        // Move them to the same desktop as their parent window
+        if (window.transient && window.transientFor) {
+            let parentWindow = window.transientFor;
+            let parentId = parentWindow.internalId.toString();
+            log("Transient window detected. Parent: " + parentId);
+            
+            // If parent is on a dedicated desktop, move this transient window there too
+            if (parentId in savedDesktops) {
+                log("Moving transient window to parent's desktop");
+                window.desktops = parentWindow.desktops;
+                return; // Don't process further for transient windows
+            }
+        }
+        
+        // Handle popup menus and context menus (like Dolphin's context menu)
+        // These should stay on the current desktop to avoid KWin crashes
+        if (window.popupWindow || window.dropdownMenu || window.popupMenu || window.tooltip || window.comboBox) {
+            log("Popup/menu window detected. Skipping desktop management to avoid crashes.");
             return;
         }
+        
         installWindowHandlers(window);
-        // Get worksace area or maximized windows
+        // Get workspace area for maximized windows
         var area = workspace.clientArea(KWin.MaximizeArea, window);
-        // If window is "maximized" move it a new desktop right away
+        // If window is "maximized" move it to a new desktop right away
         if(window.width + 1 >= area.width && window.height + 1 >= area.height && handleMaximized) {
             moveToNewDesktop(window);
+        } else {
+            // If we're on a non-main desktop and the new window is not maximized,
+            // force it to open on the main desktop and switch to main desktop (logic requirement #5)
+            let mainDesktop = workspace.desktops[0];
+            if (workspace.currentDesktop !== mainDesktop) {
+                log("New non-maximized window opened on non-main desktop. Moving to main desktop and switching.");
+                window.desktops = [mainDesktop];
+                workspace.currentDesktop = mainDesktop;
+            }
         }
     });
 
