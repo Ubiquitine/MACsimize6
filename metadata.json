@@ -10,10 +10,13 @@
             },
             {
                 "Name": "bainonline"
+            },
+            {
+                "Name": "Dean Ma"
             }
         ],
         "Id": "macsimize6",
-        "Version": "0.4.0",
+        "Version": "0.5.0",
         "License": "GPLv3",
         "EnabledByDefault": false
     },
