@@ -6,7 +6,7 @@ var handleFullscreen = readConfig("handleFullscreen", true);
 var handleMaximized = readConfig("handleMaximized", true);
 var moveToLast = readConfig("moveToLast", false);
 var enableIfOnlyOne = readConfig("enableIfOnlyOne", false);
-var enablePanelVisibility = readConfig("enablePanelVisibility", true);
+var enablePanelVisibility = readConfig("enablePanelVisibility", false);
 
 const savedDesktops = {};
 const savedModes = {};

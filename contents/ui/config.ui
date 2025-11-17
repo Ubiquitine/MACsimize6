@@ -57,10 +57,10 @@
    <item row="4" column="0">
      <widget class="QCheckBox" name="kcfg_enablePanelVisibility">
        <property name="text">
-         <string>Toggle main panel visbility</string>
+         <string>Toggle panels visbility</string>
        </property>
        <property name="checked">
-         <bool>true</bool>
+         <bool>false</bool>
        </property>
      </widget>
    </item>
