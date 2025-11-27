@@ -21,7 +21,7 @@
       <default>false</default>
     </entry>
     <entry name="SkipWindows" type="string">
-      <default>lattedock, latte-dock, org.kde.spectacle</default>
+      <default>lattedock, latte-dock, org.kde.spectacle, org.kde.yakuake</default>
     </entry>
   </group>
 
