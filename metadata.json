@@ -1,7 +1,7 @@
 {
     "KPlugin": {
         "Name": "MACsimize6",
-        "Description": "Move fullscreen/maximized window to a virtual desktop",
+        "Description": "Move fullscreen/maximized window to a separate virtual desktop",
         "Icon": "preferences-system-windows-effect-maximize",
 
         "Authors": [
