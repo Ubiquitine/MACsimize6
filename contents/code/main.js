@@ -7,6 +7,7 @@ var handleMaximized = readConfig("handleMaximized", true);
 var moveToLast = readConfig("moveToLast", false);
 var enableIfOnlyOne = readConfig("enableIfOnlyOne", false);
 var enablePanelVisibility = readConfig("enablePanelVisibility", false);
+var exclusiveDesktops = readConfig("exclusiveDesktops", true)
 
 const savedDesktops = {};
 const savedModes = {};
@@ -280,7 +281,7 @@ function install() {
             // If we're on a non-main desktop and the new window is not maximized,
             // force it to open on the main desktop and switch to main desktop (logic requirement #5)
             let mainDesktop = workspace.desktops[0];
-            if (workspace.currentDesktop !== mainDesktop) {
+            if (workspace.currentDesktop !== mainDesktop  && exclusiveDesktops) {
                 log("New non-maximized window opened on non-main desktop. Moving to main desktop and switching.");
                 window.desktops = [mainDesktop];
                 workspace.currentDesktop = mainDesktop;
