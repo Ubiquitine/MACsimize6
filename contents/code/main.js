@@ -10,6 +10,7 @@ var enablePanelVisibility = readConfig("enablePanelVisibility", false);
 var exclusiveDesktops = readConfig("exclusiveDesktops", true)
 
 const savedDesktops = {};
+const managedDesktops = [];
 const savedModes = {};
 const savedHandlers = {};
 
@@ -29,6 +30,27 @@ function shouldSkip(window) {
         log(`Skipped: ${windowClass}`);
         return true;
     }
+    if (window.desktopWindow ||
+        window.dock ||
+        window.toolbar ||
+        window.menu ||
+        window.dialog ||
+        window.splash ||
+        window.utility ||
+        window.dropdownMenu ||
+        window.popupMenu ||
+        window.tooltip ||
+        window.notification ||
+        window.criticalNotification ||
+        window.appletPopup ||
+        window.onScreenDisplay ||
+        window.comboBox ||
+        window.popupWindow ||
+        window.specialWindow ||
+        window.inputMethod ) {
+        log("Special window detected. Skipping desktop management to avoid crashes.");
+        return true;
+        }
     log(`Handled: ${windowClass}`);
     return false;
 }
@@ -67,6 +89,9 @@ function moveToNewDesktop(window) {
         }
         workspace.createDesktop(newDesktopNumber, windowName);
         newDesktop = workspace.desktops[newDesktopNumber];
+        if (!managedDesktops.includes(newDesktop)) {
+            managedDesktops.push(newDesktop);
+        }
         // Always save the main desktop (first desktop) for restoration
         savedDesktops[windowId] = [workspace.desktops[0]];
         log("Saved desktops for window " + windowId + ": " + JSON.stringify(savedDesktops[windowId]))
@@ -116,6 +141,11 @@ function restoreDesktop(window) {
         cleanDesktop(currentDesktop);
         workspace.currentDesktop = window.desktops[0];
         workspace.removeDesktop(currentDesktop);
+
+        let idx = managedDesktops.indexOf(currentDesktop);
+        if (idx !== -1) {
+            managedDesktops.splice(idx, 1);
+        }
     } else {
         log(windowId + " has no saved desktops. Not restoring")
     }
@@ -264,13 +294,6 @@ function install() {
             }
         }
         
-        // Handle popup menus and context menus (like Dolphin's context menu)
-        // These should stay on the current desktop to avoid KWin crashes
-        if (window.popupWindow || window.dropdownMenu || window.popupMenu || window.tooltip || window.comboBox) {
-            log("Popup/menu window detected. Skipping desktop management to avoid crashes.");
-            return;
-        }
-        
         installWindowHandlers(window);
         // Get workspace area for maximized windows
         var area = workspace.clientArea(KWin.MaximizeArea, window);
@@ -281,7 +304,7 @@ function install() {
             // If we're on a non-main desktop and the new window is not maximized,
             // force it to open on the main desktop and switch to main desktop (logic requirement #5)
             let mainDesktop = workspace.desktops[0];
-            if (workspace.currentDesktop !== mainDesktop  && exclusiveDesktops) {
+            if (workspace.currentDesktop !== mainDesktop  && managedDesktops.includes(workspace.currentDesktop) && exclusiveDesktops) {
                 log("New non-maximized window opened on non-main desktop. Moving to main desktop and switching.");
                 window.desktops = [mainDesktop];
                 workspace.currentDesktop = mainDesktop;
