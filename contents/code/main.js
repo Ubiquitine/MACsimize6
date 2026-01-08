@@ -9,7 +9,7 @@ var enableIfOnlyOne = readConfig("enableIfOnlyOne", false);
 var enablePanelVisibility = readConfig("enablePanelVisibility", false);
 var exclusiveDesktops = readConfig("exclusiveDesktops", true)
 
-const savedDesktops = {};
+const savedDesktops = new Map();
 const managedDesktops = [];
 const savedModes = {};
 const savedHandlers = {};
@@ -51,8 +51,8 @@ function shouldSkip(window) {
         log("Special window detected. Skipping desktop management to avoid crashes.");
         return true;
         }
-    log(`Handled: ${windowClass}`);
-    return false;
+        log(`Handled: ${windowClass}`);
+        return false;
 }
 
 function getNextDesktopNumber() {
@@ -68,7 +68,7 @@ function getNextDesktopNumber() {
 
 function moveToNewDesktop(window) {
     let windowName = window.caption.toString();
-    let windowId = window.internalId.toString();
+    let windowId = window.internalId;
     let numMonitors = workspace.screens.length;
 
     log("enableIfOnlyOne: " + enableIfOnlyOne);
@@ -76,7 +76,7 @@ function moveToNewDesktop(window) {
         log("enableIfOnlyOne: " + enableIfOnlyOne);
         log("Detected " + numMonitors + " Monitors");
         return;
-    } else if (windowId in savedDesktops) {
+    } else if (savedDesktops.has(windowId)) {
         log("Window: " + windowId + " is already on separate desktop");
         return;
     } else {
@@ -92,23 +92,16 @@ function moveToNewDesktop(window) {
         if (!managedDesktops.includes(newDesktop)) {
             managedDesktops.push(newDesktop);
         }
-        // Always save the main desktop (first desktop) for restoration
-        savedDesktops[windowId] = [workspace.desktops[0]];
-        log("Saved desktops for window " + windowId + ": " + JSON.stringify(savedDesktops[windowId]))
-        ds = [newDesktop]
-        window.desktops = ds
+
+        savedDesktops.set(windowId, {
+            resourceClass: window.resourceClass.toString(),
+            desktopIds: window.desktops
+        });
+        log("Saved desktops for window " + windowId + ": " + JSON.stringify(savedDesktops.get(windowId)));
+        ds = [newDesktop];
+        window.desktops = ds;
         workspace.currentDesktop = newDesktop;
     }
-}
-
-function sanitizeDesktops(desktops) {
-    log("Sanitizing desktops: " + JSON.stringify(desktops))
-    let sanitizedDesktops = desktops.filter(value => Object.keys(value).length !== 0);
-    log("Sanitized Desktops: " + JSON.stringify(sanitizedDesktops))
-    if (sanitizedDesktops.length < 1) {
-        sanitizedDesktops = [workspace.desktops[0]];
-    }
-    return sanitizedDesktops
 }
 
 function cleanDesktop(desktop) {
@@ -128,16 +121,14 @@ function cleanDesktop(desktop) {
 }
 
 function restoreDesktop(window) {
-    let windowId = window.internalId.toString();
+    let windowId = window.internalId;
     log("Restoring desktops for " + windowId);
     let currentDesktop = window.desktops[0];
     log("Current desktop: " + JSON.stringify(currentDesktop));
-    if (windowId in savedDesktops ) {
+    if (savedDesktops.has(windowId) ) {
         log("Found saved desktops for: " + windowId);
-        let desktops = sanitizeDesktops(savedDesktops[windowId]);
-        log("Saved desktops for window: " + windowId + ": " + JSON.stringify(savedDesktops[windowId]) + " before restore");
-        delete savedDesktops[windowId];
-        window.desktops = desktops;
+        savedDesktops.delete(windowId);
+        window.desktops = workspace.desktops[0];
         cleanDesktop(currentDesktop);
         workspace.currentDesktop = window.desktops[0];
         workspace.removeDesktop(currentDesktop);
@@ -193,9 +184,9 @@ function minimizedStateChanged(window) {
 }
 
 function windowCaptionChanged(window) {
-    let windowId = window.internalId.toString();
+    let windowId = window.internalId;
     let windowName = window.caption.toString();
-    if (windowId in savedDesktops ) {
+    if (savedDesktops.has(windowId) ) {
         log("Updating desktop name for " + windowId);
         window.desktops[0].name = windowName;
     }
@@ -220,6 +211,31 @@ function togglePanelVisibility() {
         "evaluateScript",
         script
     );
+}
+
+function sameClassDesktop(window) {
+    const windowClass = window.resourceClass.toString();
+    const currentDesktopId = workspace.currentDesktop;
+    log(`Checking ${window.internalId} - ${windowClass} for same-class desktop`);
+
+    if (savedDesktops.size === 0) {
+        log(`saved Desktops is empty`);
+        return false;
+    }
+
+    for (const [windowId, saved] of savedDesktops) {
+        log(`Testing saved entry for windowId: ${windowId}, ${saved.resourceClass}`);
+
+        if (saved.resourceClass !== windowClass) continue;
+
+        if (saved.desktopIds.includes(currentDesktopId)) {
+            log(`Match found for class ${windowClass} on current desktop`);
+            return true;
+        }
+    }
+
+    log(`No matches found for ${windowClass} in saved desktops`);
+    return false;
 }
 
 function installWindowHandlers(window) {
@@ -278,22 +294,22 @@ function install() {
         if (shouldSkip(window)) {
             return; // Skipped windows can open anywhere without restrictions
         }
-        
+
         // Handle transient windows (dialogs, toolbars, etc.) - logic requirement #3
         // Move them to the same desktop as their parent window
         if (window.transient && window.transientFor) {
             let parentWindow = window.transientFor;
-            let parentId = parentWindow.internalId.toString();
+            let parentId = parentWindow.internalId;
             log("Transient window detected. Parent: " + parentId);
-            
+
             // If parent is on a dedicated desktop, move this transient window there too
-            if (parentId in savedDesktops) {
+            if (savedDesktops.has(parentId)) {
                 log("Moving transient window to parent's desktop");
                 window.desktops = parentWindow.desktops;
                 return; // Don't process further for transient windows
             }
         }
-        
+
         installWindowHandlers(window);
         // Get workspace area for maximized windows
         var area = workspace.clientArea(KWin.MaximizeArea, window);
@@ -304,11 +320,14 @@ function install() {
             // If we're on a non-main desktop and the new window is not maximized,
             // force it to open on the main desktop and switch to main desktop (logic requirement #5)
             let mainDesktop = workspace.desktops[0];
-            if (workspace.currentDesktop !== mainDesktop  && managedDesktops.includes(workspace.currentDesktop) && exclusiveDesktops) {
+            if (workspace.currentDesktop !== mainDesktop  &&
+                managedDesktops.includes(workspace.currentDesktop) &&
+                ! sameClassDesktop(window) &&
+                exclusiveDesktops) {
                 log("New non-maximized window opened on non-main desktop. Moving to main desktop and switching.");
-                window.desktops = [mainDesktop];
-                workspace.currentDesktop = mainDesktop;
-            }
+            window.desktops = [mainDesktop];
+            workspace.currentDesktop = mainDesktop;
+                }
         }
     });
 
