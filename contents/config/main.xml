@@ -22,7 +22,7 @@
     </entry>
     <entry name="exclusiveDesktops" type="bool">
       <default>true</default>
-    </entry
+    </entry>
     <entry name="SkipWindows" type="string">
       <default>lattedock, latte-dock, org.kde.spectacle, org.kde.yakuake</default>
     </entry>
