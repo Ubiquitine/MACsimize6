@@ -91,6 +91,16 @@
       </property>
     </widget>
    </item>
+   <item row="7" column="0">
+     <widget class="QCheckBox" name="kcfg_debugMode">
+       <property name="text">
+         <string>Enable debug in kwin logs</string>
+       </property>
+       <property name="checked">
+         <bool>false</bool>
+       </property>
+     </widget>
+   </item>
   </layout>
  </widget>
  <resources/>
