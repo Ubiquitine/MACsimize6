@@ -84,7 +84,7 @@
    <item row="6" column="1">
     <widget class="QLineEdit" name="kcfg_SkipWindows">
       <property name="text">
-        <string>lattedock, latte-dock, org.kde.spectacle</string>
+        <string>lattedock, latte-dock, org.kde.spectacle, spectacle, org.kde.yakuake</string>
       </property>
       <property name="placeholderText">
         <string>Comma separated list of window classes</string>
