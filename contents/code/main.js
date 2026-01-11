@@ -27,7 +27,7 @@ const systemSkippedWindows = [
     'org.kde.plasmashell',
     'krunner'
     ];
-var configSkippedWindows = readConfig("SkipWindows", "lattedock, latte-dock, org.kde.spectacle, org.kde.yakuake").toString().toLowerCase().split(/,\s*/);
+var configSkippedWindows = readConfig("SkipWindows", "lattedock, latte-dock, org.kde.spectacle, spectable, org.kde.yakuake").toString().toLowerCase().split(/,\s*/);
 var alwaysSkippedWindows = systemSkippedWindows.concat(configSkippedWindows)
 
 function shouldSkip(window) {
