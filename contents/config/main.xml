@@ -26,6 +26,9 @@
     <entry name="debugMode" type="bool">
       <default>false</default>
     </entry>
+    <entry name="preventEmptyDesktop" type="bool">
+      <default>true</default>
+    </entry>
     <entry name="SkipWindows" type="string">
       <default>lattedock, latte-dock, org.kde.spectacle, spectacle, org.kde.yakuake</default>
     </entry>

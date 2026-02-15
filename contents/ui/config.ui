@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>334</width>
-    <height>59</height>
+    <height>250</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -75,13 +75,23 @@
      </widget>
    </item>
    <item row="6" column="0">
+     <widget class="QCheckBox" name="kcfg_preventEmptyDesktop">
+       <property name="text">
+         <string>Prevent empty desktop (maximize single windows in place)</string>
+       </property>
+       <property name="checked">
+         <bool>true</bool>
+       </property>
+     </widget>
+   </item>
+   <item row="7" column="0">
     <widget class="QLabel" name="Ignore">
      <property name="text">
       <string>Ignore:</string>
      </property>
     </widget>
    </item>
-   <item row="6" column="1">
+   <item row="7" column="1">
     <widget class="QLineEdit" name="kcfg_SkipWindows">
       <property name="text">
         <string>lattedock, latte-dock, org.kde.spectacle, spectacle, org.kde.yakuake</string>
@@ -91,7 +101,7 @@
       </property>
     </widget>
    </item>
-   <item row="7" column="0">
+   <item row="8" column="0">
      <widget class="QCheckBox" name="kcfg_debugMode">
        <property name="text">
          <string>Enable debug in kwin logs</string>
