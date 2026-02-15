@@ -5,6 +5,7 @@ var enableIfOnlyOne = readConfig("enableIfOnlyOne", false);
 var enablePanelVisibility = readConfig("enablePanelVisibility", false);
 var exclusiveDesktops = readConfig("exclusiveDesktops", true)
 var debugMode = readConfig("debugMode", false)
+var preventEmptyDesktop = readConfig("preventEmptyDesktop", true)
 
 function log(msg) {
     if (debugMode) {
@@ -119,6 +120,43 @@ function moveToNewDesktop(window) {
         log(`Window: ${windowId} is already on separate desktop`);
         return;
     } else {
+        // Check if there are other normal windows on the current desktop (if preventEmptyDesktop is enabled)
+        if (preventEmptyDesktop) {
+            let currentDesktop = workspace.currentDesktop;
+            let otherWindowsOnDesktop = 0;
+
+            for (let i = 0; i < workspace.windowList().length; i++) {
+                let w = workspace.windowList()[i];
+                // Count only normal windows that are not the current window, not skipped, and on the current desktop
+                if (w.internalId !== windowId &&
+                    !shouldSkip(w) &&
+                    w.normalWindow &&
+                    !w.skipTaskbar &&
+                    w.desktops.includes(currentDesktop)) {
+                    otherWindowsOnDesktop++;
+                    log(`Found other window on desktop: ${w.resourceClass.toString()}`);
+                }
+            }
+
+            log(`Other windows on current desktop: ${otherWindowsOnDesktop}`);
+
+            // If this is the only window on the current desktop, don't create a new desktop
+            if (otherWindowsOnDesktop === 0) {
+                log(`Window ${windowId} is the only window on desktop. Not creating new desktop.`);
+                // Just mark it as macsimized in place
+                updateSavedData(windowId, {
+                    resourceClass: window.resourceClass.toString(),
+                    desktops: window.desktops,
+                    macsimized: true
+                });
+
+                if (!managedDesktops.includes(currentDesktop)) {
+                    managedDesktops.push(currentDesktop);
+                }
+                return;
+            }
+        }
+
         log(`Creating new desktop with name: ${windowName}`);
         let newDesktopNumber = -1;
 
@@ -189,6 +227,18 @@ function restoreDesktop(window) {
 
         // Remove MACsimized indicator for the window
         deleteSavedData(windowId, "macsimized");
+
+        // Check if the window is already on the main desktop (macsimized in place)
+        let mainDesktop = workspace.desktops[0];
+        if (windowDesktop === mainDesktop) {
+            log(`Window ${windowId} was macsimized in place on main desktop. Not moving.`);
+            // Remove from managed desktops if it's there
+            let idx = managedDesktops.indexOf(windowDesktop);
+            if (idx !== -1) {
+                managedDesktops.splice(idx, 1);
+            }
+            return;
+        }
 
         // Delete the window's desktop and move the window to the main desktop
         window.desktops = [workspace.desktops[0]];
