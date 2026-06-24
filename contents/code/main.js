@@ -75,6 +75,32 @@ function shouldSkip(window) {
     return false;
 }
 
+function getPriorDesktopNumber() {
+    log(`Getting prior desktop number ${workspace.currentDesktop}`);
+
+    let macsimizedDesktops = [];
+    for (let window of workspace.windowList()) {
+        const data = savedData.get(window.internalId);
+        if (data && data.macsimized) {
+            macsimizedDesktops.push(window.desktops[0].id);
+        }
+    }
+
+    for (i = workspace.currentDesktop.x11DesktopNumber - 2; i >= 0; i--) {
+        let desktop = workspace.desktops[i];
+
+        if (macsimizedDesktops.includes(desktop.id)) {
+            log(`Skipping desktop number with macsimized window: ${i}`);
+        } else {
+            log(`Prior desktop number: ${i}`);
+            return i;
+        }
+    }
+
+    // Nothing found, return first desktop
+    return 0;
+}
+
 function getNextDesktopNumber() {
     log(`Getting next desktop number ${workspace.currentDesktop}`);
 
@@ -185,15 +211,16 @@ function restoreDesktop(window) {
 
     // Only move window that has been MACsimized
     if (data && data.macsimized) {
-        log(`Restoring window ${windowId} to the main desktops`);
+        log(`Restoring window ${windowId} to the prior desktop`);
 
         // Remove MACsimized indicator for the window
         deleteSavedData(windowId, "macsimized");
 
-        // Delete the window's desktop and move the window to the main desktop
-        window.desktops = [workspace.desktops[0]];
+        // Delete the window's desktop and move the window to the prior desktop
+        let newDesktop = workspace.desktops[getPriorDesktopNumber()];
+        window.desktops = [newDesktop];
         cleanDesktop(windowDesktop);
-        workspace.currentDesktop = window.desktops[0];
+        workspace.currentDesktop = newDesktop;
         workspace.removeDesktop(windowDesktop);
 
         // Update saved data for managed desktops
@@ -214,7 +241,7 @@ function fullScreenChanged(window) {
     log(`Window : ${windowId} full-screen : ${window.fullScreen}`);
 
     // Move full-screened window to its new desktop
-    // Restore un-full-screened window to the main desktop
+    // Restore un-full-screened window to the prior desktop
     // If the window is still maximized - leave it where it is
     if (window.fullScreen) {
         moveToNewDesktop(window);
@@ -238,7 +265,7 @@ function maximizedStateChanged(window, mode) {
     log(`Window : ${windowId} maximized mode : ${mode}`);
 
     // If window is maximized - move it to it's new desktop
-    // If window is un-maximized - restore it to the main desktop
+    // If window is un-maximized - restore it to the prior desktop
     if (mode == 3) {
         moveToNewDesktop(window);
     } else {
@@ -251,7 +278,7 @@ function minimizedStateChanged(window) {
     let windowId = window.internalId;
     const data = savedData.get(windowId);
 
-    // If window is minimized resore it to the main desktop
+    // If window is minimized resore it to the prior desktop
     // If unminimized, create a new desktop for it
     // Only do it for MACsimized windows
     if (window.minimized && data && data.macsimized) {
@@ -445,17 +472,16 @@ function install() {
         if (window.width + 1 >= area.width && window.height + 1 >= area.height && handleMaximized) {
             moveToNewDesktop(window);
         } else {
-            // If we're on a non-main desktop and the new window is not maximized,
-            // force it to open on the main desktop and switch to main desktop (logic requirement #5)
-            let mainDesktop = workspace.desktops[0];
+            // If we're on a macsimized desktop and the new window is not maximized,
+            // force it to open on the prior desktop and switch to prior desktop (logic requirement #5)
+            let priorDesktop = workspace.desktops[getPriorDesktopNumber()];
 
-            if (workspace.currentDesktop !== mainDesktop &&
-                managedDesktops.includes(workspace.currentDesktop) &&
+            if (managedDesktops.includes(workspace.currentDesktop) &&
                 !sameClassDesktop(window) &&
                 exclusiveDesktops) {
-                log(`New non-maximized window opened on non-main desktop. Moving to main desktop and switching.`);
-                window.desktops = [mainDesktop];
-                workspace.currentDesktop = mainDesktop;
+                log(`New non-maximized window opened on macsimized desktop. Moving to prior desktop and switching.`);
+                window.desktops = [priorDesktop];
+                workspace.currentDesktop = priorDesktop;
             }
         }
     });
