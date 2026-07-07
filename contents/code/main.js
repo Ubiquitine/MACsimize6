@@ -1,38 +1,188 @@
-var handleFullscreen = readConfig("handleFullscreen", true);
-var handleMaximized = readConfig("handleMaximized", true);
-var moveToLast = readConfig("moveToLast", false);
-var enableIfOnlyOne = readConfig("enableIfOnlyOne", false);
-var enablePanelVisibility = readConfig("enablePanelVisibility", false);
-var exclusiveDesktops = readConfig("exclusiveDesktops", true)
-var debugMode = readConfig("debugMode", false)
+//
+// Configuration
+//
 
-function log(msg) {
-    if (debugMode) {
-        print(`MACsimize6: ${msg}`);
-    }
+const handleFullscreen      = readConfig("handleFullscreen", true);
+const handleMaximized       = readConfig("handleMaximized", true);
+const moveToLast            = readConfig("moveToLast", false);
+const enableIfOnlyOne       = readConfig("enableIfOnlyOne", false);
+const enablePanelVisibility = readConfig("enablePanelVisibility", false);
+const exclusiveDesktops     = readConfig("exclusiveDesktops", true);
+const debugMode             = readConfig("debugMode", false);
+
+//
+// Constants
+//
+
+const MAXIMIZED = 3;
+
+//
+// Logging
+//
+
+function log(message)
+{
+    if (debugMode)
+        print("MACsimize6: " + message);
 }
 
+function logWindow(window, message)
+{
+    if (!window)
+        return;
+
+    log("[" + window.internalId + "] " + message);
+}
+
+//
+// Global state
+//
+
 const savedData = new Map();
+
 const managedDesktops = [];
 
+//
+// Windows to ignore
+//
+
 const systemSkippedWindows = [
-    'kwin',
-    'kwin_wayland',
-    'ksmserver-logout-greeter',
-    'ksmserver',
-    'kscreenlocker_greet',
-    'ksplash',
-    'ksplashqml',
-    'plasmashell',
-    'org.kde.plasmashell',
-    'krunner'
-    ];
-var configSkippedWindows = readConfig("SkipWindows", "lattedock, latte-dock, org.kde.spectacle, spectable, org.kde.yakuake").toString().toLowerCase().split(/,\s*/);
-var alwaysSkippedWindows = systemSkippedWindows.concat(configSkippedWindows)
+    "kwin",
+    "kwin_wayland",
+    "ksmserver-logout-greeter",
+    "ksmserver",
+    "kscreenlocker_greet",
+    "ksplash",
+    "ksplashqml",
+    "plasmashell",
+    "org.kde.plasmashell",
+    "krunner"
+];
 
-function shouldSkip(window) {
+const configSkippedWindows =
+    readConfig(
+        "SkipWindows",
+        "lattedock, latte-dock, org.kde.spectacle, spectacle, org.kde.yakuake"
+    )
+    .toString()
+    .toLowerCase()
+    .split(/,\s*/);
 
-    // If the window is not a normal window it should be skipped
+const alwaysSkippedWindows =
+    systemSkippedWindows.concat(configSkippedWindows);
+
+//
+// Window state
+//
+
+function getState(window)
+{
+    const id = window.internalId;
+
+    if (!savedData.has(id))
+    {
+        savedData.set(id, {
+
+            tracked: false,
+
+            maximizedMode: 0,
+
+            resourceClass: "",
+
+            dedicatedDesktop: null
+        });
+    }
+
+    return savedData.get(id);
+}
+
+function purgeState(window)
+{
+    savedData.delete(window.internalId);
+}
+
+function isTracked(window)
+{
+    return getState(window).tracked;
+}
+
+function isManaged(window)
+{
+    return getState(window).dedicatedDesktop !== null;
+}
+
+function setTracked(window, tracked)
+{
+    getState(window).tracked = tracked;
+}
+
+function setMaximizedMode(window, mode)
+{
+    getState(window).maximizedMode = mode;
+}
+
+function isWindowMaximized(window)
+{
+    const area = workspace.clientArea(KWin.MaximizeArea, window);
+
+    return window.width + 1 >= area.width &&
+           window.height + 1 >= area.height;
+}
+//
+// Helpers
+//
+
+function getWindowClass(window)
+{
+    if (!window || !window.resourceClass)
+        return "";
+
+    return window.resourceClass.toString().toLowerCase();
+}
+
+function getNextDesktopNumber()
+{
+    for (let i = 0; i < workspace.desktops.length; ++i)
+    {
+        if (workspace.desktops[i] === workspace.currentDesktop)
+            return i + 1;
+    }
+
+    return workspace.desktops.length;
+}
+
+function createManagedDesktop(name)
+{
+    const index =
+        moveToLast
+            ? workspace.desktops.length
+            : getNextDesktopNumber();
+
+    workspace.createDesktop(index, name);
+
+    const desktop = workspace.desktops[index];
+
+    managedDesktops.push(desktop);
+
+    return desktop;
+}
+
+function removeManagedDesktop(desktop)
+{
+    const index = managedDesktops.indexOf(desktop);
+
+    if (index >= 0)
+        managedDesktops.splice(index, 1);
+
+    workspace.removeDesktop(desktop);
+}
+
+//
+// Window filtering
+//
+
+function shouldSkip(window)
+{
     if (!window ||
         window.desktopWindow ||
         window.dock ||
@@ -51,256 +201,355 @@ function shouldSkip(window) {
         window.comboBox ||
         window.popupWindow ||
         window.specialWindow ||
-        window.inputMethod) {
-
-        log("Skipped: Special window");
+        window.inputMethod)
+    {
+        log("Skipped special window");
         return true;
     }
 
-    const windowClass = (window.resourceClass.toString() || "").toLowerCase();
+    const windowClass = getWindowClass(window);
 
-    // Windows with empty class should be skipped
-    if (!windowClass) {
-        log(`Skipped: Null`);
+    if (!windowClass)
+    {
+        log("Skipped window with empty class");
         return true;
     }
 
-    // Some system and user defined windows should be skipped
-    if (alwaysSkippedWindows.indexOf(windowClass) != -1) {
-        log(`Skipped: ${windowClass}`);
+    if (alwaysSkippedWindows.includes(windowClass))
+    {
+        log("Skipped " + windowClass);
         return true;
     }
 
-    log(`Check passed for: ${windowClass}`);
     return false;
 }
 
-function getNextDesktopNumber() {
-    log(`Getting next desktop number ${workspace.currentDesktop}`);
+//
+// Desktop management
+//
 
-    for (i = 0; i < workspace.desktops.length; i++) {
-        desktop = workspace.desktops[i];
+function isManagedDesktop(desktop)
+{
+    if (!desktop)
+        return false;
 
-        if (desktop == workspace.currentDesktop) {
-            log(`Found: ${desktop.name} Number: ${i}`);
-            return i + 1;
-        }
+    for (const state of savedData.values())
+    {
+        if (!state.dedicatedDesktop)
+            continue;
+
+        if (state.dedicatedDesktop.id === desktop.id)
+            return true;
     }
+
+    return false;
 }
 
-// Functions to updated and delete saved data
-function updateSavedData(windowId, patch) {
-    const prev = savedData.get(windowId) || {};
-    const merged = Object.assign({}, prev, patch);
-    savedData.set(windowId, merged);
+function createManagedDesktop(window)
+{
+    const index = moveToLast
+        ? workspace.desktops.length
+        : getNextDesktopNumber();
+
+    workspace.createDesktop(index, window.caption.toString());
+
+    return workspace.desktops[index];
 }
 
-function deleteSavedData(windowId, field) {
-    const data = savedData.get(windowId);
-
-    if (!data) return;
-
-    if (field in data) {
-        delete data[field];
-    }
-}
-
-function moveToNewDesktop(window) {
-    let windowName = window.caption.toString();
-    let windowId = window.internalId;
-    const data = savedData.get(windowId);
-    let numMonitors = workspace.screens.length;
-    log(`enableIfOnlyOne: ${enableIfOnlyOne}`);
-
-    if (enableIfOnlyOne && numMonitors > 1) {
-        log(`Detected ${numMonitors} monitors`);
+function removeManagedDesktop(desktop)
+{
+    if (!desktop)
         return;
-    } else if (data && data.macsimized) {
-        log(`Window: ${windowId} is already on separate desktop`);
+
+    workspace.removeDesktop(desktop);
+}
+
+function moveToNewDesktop(window)
+{
+    if (enableIfOnlyOne &&
+        workspace.screens.length > 1)
+    {
+        logWindow(window, "Skipping because multiple monitors are connected.");
         return;
-    } else {
-        log(`Creating new desktop with name: ${windowName}`);
-        let newDesktopNumber = -1;
-
-        if (moveToLast) {
-            newDesktopNumber = workspace.desktops.length;
-        } else {
-            newDesktopNumber = getNextDesktopNumber();
-        }
-
-        // Mapping data for the MACsimized window
-        updateSavedData(windowId, {
-            resourceClass: window.resourceClass.toString(),
-            desktops: window.desktops,
-            macsimized: true
-        });
-
-        // Creating a new desktop
-        workspace.createDesktop(newDesktopNumber, windowName);
-        newDesktop = workspace.desktops[newDesktopNumber];
-
-        if (!managedDesktops.includes(newDesktop)) {
-            managedDesktops.push(newDesktop);
-        }
-
-        log(`Saved desktops for window ${windowId} : ${JSON.stringify(savedData.get(windowId))}`);
-        ds = [newDesktop];
-        // Moving window to the new desktop
-        window.desktops = ds;
-        // Switching to the new desktop
-        workspace.currentDesktop = newDesktop;
     }
+
+    const state = getState(window);
+
+    if (state.dedicatedDesktop)
+    {
+        logWindow(window, "Already on a dedicated desktop.");
+        return;
+    }
+
+    logWindow(window, "Creating dedicated desktop.");
+
+    state.resourceClass = getWindowClass(window);
+
+    const desktop = createManagedDesktop(window);
+
+    state.dedicatedDesktop = desktop;
+
+    window.desktops = [desktop];
+    workspace.currentDesktop = desktop;
 }
 
-function cleanDesktop(desktop) {
-    log(`Cleaning desktop: ${JSON.stringify(desktop)}`);
+function restoreDesktop(window)
+{
+    const state = getState(window);
 
-    // Going through the list of all windows
-    for (var i in workspace.windowList()) {
-        let window = workspace.windowList()[i];
-
-        // If a window is assigned the desktop - remove the desktop from the list of desktops
-        if (window.desktops.includes(desktop) && !window.skipTaskbar) {
-            let windowName = window.resourceName;
-            log(`Window: ${windowName} is on the desktop`);
-            window.desktops = window.desktops.filter(item => item.id !== desktop.id);
-
-            // If it was a single dektop for this window - move it to the main desktop
-            if (window.desktops.length < 1) {
-                window.desktops = [workspace.desktops[0]];
-            }
-
-            log(`Window ${windowName}: ${JSON.stringify(window.desktops)}`);
-        }
+    if (!state.dedicatedDesktop)
+    {
+        logWindow(window, "Window is not managed.");
+        return;
     }
+
+    const desktop = state.dedicatedDesktop;
+
+    logWindow(window, "Restoring to the main desktop.");
+
+    //
+    // Clear our state first so recursive events
+    // don't think we're still managed.
+    //
+    state.dedicatedDesktop = null;
+
+    window.desktops = [workspace.desktops[0]];
+
+    workspace.currentDesktop = workspace.desktops[0];
+
+    removeManagedDesktop(desktop);
 }
 
-function restoreDesktop(window) {
-    let windowId = window.internalId;
-    const data = savedData.get(windowId);
-    log(`Restoring desktops for ${windowId}`);
-    log(`Saved data: ${JSON.stringify(data)}`)
-    let windowDesktop = window.desktops[0];
-    log(`Current desktop: ${JSON.stringify(windowDesktop)}`);
+function updateDedicatedDesktopName(window)
+{
+    const state = getState(window);
 
-    // Only move window that has been MACsimized
-    if (data && data.macsimized) {
-        log(`Restoring window ${windowId} to the main desktops`);
+    if (!state.dedicatedDesktop)
+        return;
 
-        // Remove MACsimized indicator for the window
-        deleteSavedData(windowId, "macsimized");
-
-        // Delete the window's desktop and move the window to the main desktop
-        window.desktops = [workspace.desktops[0]];
-        cleanDesktop(windowDesktop);
-        workspace.currentDesktop = window.desktops[0];
-        workspace.removeDesktop(windowDesktop);
-
-        // Update saved data for managed desktops
-        let idx = managedDesktops.indexOf(windowDesktop);
-
-        if (idx !== -1) {
-            managedDesktops.splice(idx, 1);
-        }
-
-    } else {
-        log(`${windowId} is not MACSimized. Not restoring.`)
-    }
+    state.dedicatedDesktop.name = window.caption.toString();
 }
 
-function fullScreenChanged(window) {
-    let windowId = window.internalId;
-    const data = savedData.get(windowId);
-    log(`Window : ${windowId} full-screen : ${window.fullScreen}`);
+//
+// Returns true if the current desktop already
+// belongs to a managed window of the same class.
+//
+function sameClassDesktop(window)
+{
+    const windowClass = getWindowClass(window);
+    const currentDesktop = workspace.currentDesktop;
 
-    // Move full-screened window to its new desktop
-    // Restore un-full-screened window to the main desktop
-    // If the window is still maximized - leave it where it is
-    if (window.fullScreen) {
+    for (const state of savedData.values())
+    {
+        if (!state.dedicatedDesktop)
+            continue;
+
+        if (state.resourceClass !== windowClass)
+            continue;
+
+        if (state.dedicatedDesktop.id === currentDesktop.id)
+            return true;
+    }
+
+    return false;
+}
+
+//
+// Window evaluation
+//
+
+function evaluateWindow(window)
+{
+    const state = getState(window);
+
+    //
+    // Minimized windows are always restored to the main desktop.
+    //
+    if (window.minimized)
+    {
+        if (isManaged(window))
+            restoreDesktop(window);
+
+        return;
+    }
+
+    //
+    // Fullscreen has highest priority.
+    //
+    if (handleFullscreen && window.fullScreen)
+    {
         moveToNewDesktop(window);
-    } else if (data && data.macsimized && data.windowMode === 3) {
-        log(`Window: ${windowId} is still maximized.`);
         return;
-    } else {
+    }
+
+    //
+    // Maximized windows should live on dedicated desktops.
+    //
+    if (handleMaximized &&
+        state.maximizedMode === MAXIMIZED)
+    {
+        moveToNewDesktop(window);
+        return;
+    }
+
+    //
+    // Otherwise restore the window.
+    //
+    if (isManaged(window))
+    {
         restoreDesktop(window);
         workspace.raiseWindow(window);
     }
 }
 
-function maximizedStateChanged(window, mode) {
-    let windowId = window.internalId;
+//
+// State change handlers
+//
 
-    // Save the window mode
-    updateSavedData(windowId, {
-        windowMode: mode
+function maximizedStateChanged(window, mode)
+{
+    setMaximizedMode(window, mode);
+
+    logWindow(window, "Maximized mode: " + mode);
+
+    evaluateWindow(window);
+}
+
+function fullScreenChanged(window)
+{
+    logWindow(window,
+        "Fullscreen: " + window.fullScreen);
+
+    evaluateWindow(window);
+}
+
+function minimizedStateChanged(window)
+{
+    logWindow(window,
+        "Minimized: " + window.minimized);
+
+    evaluateWindow(window);
+}
+
+function windowCaptionChanged(window)
+{
+    updateDedicatedDesktopName(window);
+}
+
+//
+// Window signal installation
+//
+
+function installWindowHandlers(window)
+{
+    if (!window)
+        return;
+
+    if (!window.normalWindow)
+        return;
+
+    if (window.skipTaskbar)
+        return;
+
+    if (window.splash)
+        return;
+
+    if (!window.fullScreenable &&
+        !window.maximizable)
+    {
+        return;
+    }
+
+    if (isTracked(window))
+    {
+        logWindow(window, "Already tracked.");
+        return;
+    }
+
+    logWindow(window, "Installing handlers.");
+
+    setTracked(window, true);
+
+    //
+    // Maximization
+    //
+    if (handleMaximized &&
+        window.maximizable)
+    {
+        window.maximizedAboutToChange.connect(function(mode) {
+
+            logWindow(window,
+                "maximizedAboutToChange(" + mode + ")");
+
+            maximizedStateChanged(window, mode);
+
+        });
+
+        window.minimizedChanged.connect(function() {
+
+            minimizedStateChanged(window);
+
+        });
+    }
+
+    //
+    // Fullscreen
+    //
+    if (handleFullscreen &&
+        window.fullScreenable)
+    {
+        window.fullScreenChanged.connect(function() {
+
+            fullScreenChanged(window);
+
+        });
+    }
+
+    //
+    // Caption changes
+    //
+    if ((handleFullscreen && window.fullScreenable) ||
+        (handleMaximized && window.maximizable))
+    {
+        window.captionChanged.connect(function() {
+
+            windowCaptionChanged(window);
+
+        });
+    }
+
+    //
+    // Window closed
+    //
+    window.closed.connect(function() {
+
+        logWindow(window, "Closed.");
+
+        restoreDesktop(window);
+
+        purgeState(window);
+
     });
-
-    log(`Window : ${windowId} maximized mode : ${mode}`);
-
-    // If window is maximized - move it to it's new desktop
-    // If window is un-maximized - restore it to the main desktop
-    if (mode == 3) {
-        moveToNewDesktop(window);
-    } else {
-        restoreDesktop(window);
-        workspace.raiseWindow(window);
-    }
 }
 
-function minimizedStateChanged(window) {
-    let windowId = window.internalId;
-    const data = savedData.get(windowId);
+//
+// Panel visibility
+//
 
-    // If window is minimized resore it to the main desktop
-    // If unminimized, create a new desktop for it
-    // Only do it for MACsimized windows
-    if (window.minimized && data && data.macsimized) {
-        log(`window: ${windowId} is minimized. Restoring desktops`);
-        updateSavedData(windowId, {
-            minimized: true
-        });
-        restoreDesktop(window);
-    } else if (data && data.minimized && data.windowMode === 3) {
-        log(`Window: ${windowId} is un-minimized and was maximized before.`);
-        deleteSavedData(windowId, "minimized");
-        moveToNewDesktop(window);
-    } else {
-        log(`Nothing to do for window ${windowId}`);
-        return;
-    }
-}
+function togglePanelVisibility()
+{
+    let panelVisibility = "none";
 
-function windowCaptionChanged(window) {
-    let windowId = window.internalId;
-    let windowName = window.caption.toString();
-    const data = savedData.get(windowId);
+    if (workspace.currentDesktop !== workspace.desktops[0])
+        panelVisibility = "dodgewindows";
 
-    // Update the name of the MACsimized window desktop
-    if (data && data.macsimized) {
-        log(`Updating desktop name for ${windowId}`);
-        window.desktops[0].name = windowName;
-    }
-}
-
-function togglePanelVisibility() {
-    let defaultDesktop = workspace.desktops[0];
-    // Default panel visibility
-    let panelVisibility = 'none';
-
-    // If we are not on the main desktop, set panel visibility to DodgeWindows
-    if (workspace.currentDesktop !== defaultDesktop) {
-        panelVisibility = 'dodgewindows';
-    }
-
-    // Script to go theough all panels and set visibility
-    var script = `
-    for (let id of panelIds) {
-        let p = panelById(id);
-        p.hiding = "${panelVisibility}";
-    }
+    const script = `
+        for (let id of panelIds) {
+            let p = panelById(id);
+            p.hiding = "${panelVisibility}";
+        }
     `;
 
-    // Call DBus and execute the script
     callDBus(
         "org.kde.plasmashell",
         "/PlasmaShell",
@@ -310,163 +559,111 @@ function togglePanelVisibility() {
     );
 }
 
-function sameClassDesktop(window) {
-    const windowClass = window.resourceClass.toString();
-    const currentDesktop = workspace.currentDesktop;
-    log(`Checking ${window.internalId} - ${windowClass} for same-class desktop`);
+//
+// Main installation
+//
 
-    if (savedData.size === 0) {
-        log(`saved Desktops is empty`);
-        return false;
+function install()
+{
+    log("Installing workspace handlers.");
+
+    //
+    // Existing windows
+    //
+    for (const window of workspace.windowList())
+    {
+        if (shouldSkip(window))
+            continue;
+
+        installWindowHandlers(window);
     }
 
-    // Go though tracked windows
-    for (const [windowId, saved] of savedData) {
-        log(`Testing saved entry for windowId: ${windowId}, ${saved.resourceClass}`);
+    //
+    // Activated windows
+    //
+    workspace.windowActivated.connect(function(window) {
 
-        // Skip non macsimized and windows that don't match the class
-        if (!saved.macsimized) continue;
-        if (saved.resourceClass !== windowClass) continue;
-
-        // If macsimized window with the same class is on the current desktop
-        if (saved.desktops.includes(currentDesktop)) {
-            log(`Match found for class ${windowClass} on current desktop`);
-            // Yes the window has the same class as the macsimized window on the current desktop
-            return true;
-        }
-    }
-
-    log(`No matches found for ${windowClass} in saved data`);
-    return false;
-}
-
-function installWindowHandlers(window) {
-    log(`Cheking window ${window.resourceClass.toString()} before installing handler`);
-
-    // Check if the window is normal and can be maximized and full-screened.
-    if (window !== null &&
-        window.normalWindow &&
-        !window.skipTaskbar &&
-        !window.splash &&
-        (window.fullScreenable || window.maximizable)) {
-
-        log(`Window is good: ${window.resourceClass.toString()}`);
-        let windowId = window.internalId;
-        const data = savedData.get(windowId);
-
-        // Skipt if the window s already being tracked
-        if (data && data.tracked) {
-            log(`${windowId} is already being tracked`);
+        if (shouldSkip(window))
             return;
-        }
 
-        log(`Now tracking ${windowId}`);
+        installWindowHandlers(window);
 
-        // Mark window as tracked
-        updateSavedData(windowId, {
-            tracked: true
-        });
-
-        log(`Installing handles for ${windowId}`);
-
-        // Install handlers for maximized state if enabled
-        if (handleMaximized && window.maximizable) {
-            window.maximizedAboutToChange.connect(function(mode) {
-                log(`${windowId}: maximized changed`);
-                maximizedStateChanged(window, mode);
-            });
-            window.minimizedChanged.connect(function() {
-                log(`${windowId}: minimized changed`);
-                minimizedStateChanged(window);
-            });
-        }
-
-        // Install handlers for full-screen state if enabled
-        if (handleFullscreen && window.fullScreenable) {
-            window.fullScreenChanged.connect(function() {
-                log(`${windowId}: full-screem changed`);
-                fullScreenChanged(window);
-            });
-        }
-
-        // Install handlers for window caption chage
-        if ((handleFullscreen && window.fullScreenable) || (handleMaximized && window.maximizable)) {
-            window.captionChanged.connect(function() {
-                log(`${windowId}: caption changed`);
-                windowCaptionChanged(window);
-            });
-        }
-
-        // Restore desktop and purge data for closed windows
-        window.closed.connect(function() {
-            log(`${windowId}: closed`);
-            restoreDesktop(window);
-            savedData.delete(windowId);
-        });
-    }
-}
-
-function install() {
-    log(`Installing handler for workspace to track activated windows`);
-    workspace.windowActivated.connect(window => {
-        // Check if window should be skipped (ignored list)
-        if (shouldSkip(window)) {
-            return;
-        }
-
-        installWindowHandlers(window)
     });
-    workspace.windowAdded.connect(window => {
-        // Check if window should be skipped (ignored list)
-        if (shouldSkip(window)) {
-            return; // Skipped windows can open anywhere without restrictions
-        }
 
-        // Handle transient windows (dialogs, toolbars, etc.) - logic requirement #3
-        // Move them to the same desktop as their parent window
-        if (window.transient && window.transientFor) {
-            let parentWindow = window.transientFor;
-            let parentId = parentWindow.internalId;
-            log(`Transient window detected. Parent: ${parentId}`);
+    //
+    // New windows
+    //
+    workspace.windowAdded.connect(function(window) {
 
-            // If parent is on a dedicated desktop, move this transient window there too
-            if (savedData.get(parentId).macsimized) {
-                log(`Moving transient window to parent's desktop`);
-                window.desktops = parentWindow.desktops;
-                return; // Don't process further for transient windows
+        if (shouldSkip(window))
+            return;
+
+        //
+        // Transient windows inherit the parent's desktop.
+        //
+        if (window.transientFor)
+        {
+            const parent = window.transientFor;
+
+            if (parent && isManaged(parent))
+            {
+                logWindow(window,
+                    "Moving transient window to parent's desktop.");
+
+                window.desktops = parent.desktops;
+
+                return;
             }
         }
 
         installWindowHandlers(window);
-        // Get workspace area for maximized windows
-        var area = workspace.clientArea(KWin.MaximizeArea, window);
 
-        // If window is "maximized" move it to a new desktop right away
-        if (window.width + 1 >= area.width && window.height + 1 >= area.height && handleMaximized) {
-            moveToNewDesktop(window);
-        } else {
-            // If we're on a non-main desktop and the new window is not maximized,
-            // force it to open on the main desktop and switch to main desktop (logic requirement #5)
-            let mainDesktop = workspace.desktops[0];
+        const mainDesktop = workspace.desktops[0];
 
-            if (workspace.currentDesktop !== mainDesktop &&
-                managedDesktops.includes(workspace.currentDesktop) &&
-                !sameClassDesktop(window) &&
-                exclusiveDesktops) {
-                log(`New non-maximized window opened on non-main desktop. Moving to main desktop and switching.`);
-                window.desktops = [mainDesktop];
-                workspace.currentDesktop = mainDesktop;
-            }
+        if (workspace.currentDesktop !== mainDesktop &&
+            isManagedDesktop(workspace.currentDesktop) &&
+            !sameClassDesktop(window) &&
+            exclusiveDesktops)
+        {
+            logWindow(window,
+                "Moving unrelated window to main desktop.");
+
+            window.desktops = [mainDesktop];
+
+            workspace.currentDesktop = mainDesktop;
         }
+
+        //
+        // Initialize maximize state for windows that
+        // are already maximized when created.
+        //
+        if (handleMaximized && isWindowMaximized(window))
+        {
+            setMaximizedMode(window, MAXIMIZED);
+        }
+        else
+        {
+            setMaximizedMode(window, 0);
+        }
+
+        //
+        // Newly-created fullscreen windows don't emit
+        // fullScreenChanged either, so simply evaluate.
+        //
+        evaluateWindow(window);
+
     });
 
-    // Install handler for panel visibility if enabled
-    if (enablePanelVisibility) {
-        workspace.currentDesktopChanged.connect(togglePanelVisibility)
+    if (enablePanelVisibility)
+    {
+        workspace.currentDesktopChanged.connect(
+            togglePanelVisibility
+        );
     }
 
-    log(`Workspace handler installed`);
+    log("Workspace handlers installed.");
 }
 
-log(`Initializing...`);
+log("Initializing...");
+
 install();
