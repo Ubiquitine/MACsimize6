@@ -10,6 +10,15 @@ const enablePanelVisibility = readConfig("enablePanelVisibility", false);
 const exclusiveDesktops     = readConfig("exclusiveDesktops", true);
 const debugMode             = readConfig("debugMode", false);
 
+var lastPanelMode = "";
+var panelTimer = new QTimer();
+
+panelTimer.interval = 100;
+
+panelTimer.timeout.connect(function() {
+    updatePanelVisibility();
+});
+
 //
 // Constants
 //
@@ -184,24 +193,26 @@ function removeManagedDesktop(desktop)
 function shouldSkip(window)
 {
     if (!window ||
-        window.desktopWindow ||
-        window.dock ||
-        window.toolbar ||
-        window.menu ||
-        window.dialog ||
-        window.splash ||
-        window.utility ||
-        window.dropdownMenu ||
-        window.popupMenu ||
-        window.tooltip ||
-        window.notification ||
-        window.criticalNotification ||
         window.appletPopup ||
-        window.onScreenDisplay ||
         window.comboBox ||
+        window.criticalNotification ||
+        window.desktopWindow ||
+        window.dialog ||
+        window.dndIcon ||
+        window.dock ||
+        window.dropdownMenu ||
+        window.hidden ||
+        window.inputMethod ||
+        window.menu ||
+        window.notification ||
+        window.onScreenDisplay ||
+        window.popupMenu ||
         window.popupWindow ||
         window.specialWindow ||
-        window.inputMethod)
+        window.splash ||
+        window.toolbar ||
+        window.tooltip ||
+        window.utility )
     {
         log("Skipped special window");
         return true;
@@ -400,6 +411,7 @@ function evaluateWindow(window)
         restoreDesktop(window);
         workspace.raiseWindow(window);
     }
+
 }
 
 //
@@ -536,12 +548,17 @@ function installWindowHandlers(window)
 // Panel visibility
 //
 
-function togglePanelVisibility()
+function updatePanelVisibility()
 {
-    let panelVisibility = "none";
+    let panelVisibility =
+    workspace.currentDesktop === workspace.desktops[0]
+        ? "none"
+        : "dodgewindows";
 
-    if (workspace.currentDesktop !== workspace.desktops[0])
-        panelVisibility = "dodgewindows";
+    if (panelVisibility === lastPanelMode)
+        return;
+
+    lastPanelMode = panelVisibility;
 
     const script = `
         for (let id of panelIds) {
@@ -594,6 +611,7 @@ function install()
     // New windows
     //
     workspace.windowAdded.connect(function(window) {
+
 
         if (shouldSkip(window))
             return;
@@ -656,9 +674,12 @@ function install()
 
     if (enablePanelVisibility)
     {
-        workspace.currentDesktopChanged.connect(
-            togglePanelVisibility
-        );
+       workspace.currentDesktopChanged.connect(function() {
+
+            panelTimer.stop();
+            panelTimer.start();
+
+        });
     }
 
     log("Workspace handlers installed.");
