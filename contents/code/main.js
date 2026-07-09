@@ -13,7 +13,7 @@ const debugMode             = readConfig("debugMode", false);
 var lastPanelMode = "";
 var panelTimer = new QTimer();
 
-panelTimer.interval = 100;
+panelTimer.interval = 50;
 
 panelTimer.timeout.connect(function() {
     updatePanelVisibility();
@@ -636,6 +636,10 @@ function install()
 
         installWindowHandlers(window);
 
+        //
+        // Move unrelated windows from the
+        // dedicated desktop to the main desktop.
+        //
         const mainDesktop = workspace.desktops[0];
 
         if (workspace.currentDesktop !== mainDesktop &&
