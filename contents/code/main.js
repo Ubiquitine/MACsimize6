@@ -75,7 +75,9 @@ const configSkippedWindows =
     )
     .toString()
     .toLowerCase()
-    .split(/,\s*/);
+    .replace(/\r?\n/g, ",")
+    .split(/\s*,\s*/)
+    .filter(s => s.length > 0);
 
 const alwaysSkippedWindows =
     systemSkippedWindows.concat(configSkippedWindows);
