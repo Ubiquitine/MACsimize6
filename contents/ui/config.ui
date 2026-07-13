@@ -1,107 +1,253 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
  <class>KWin::TemporaryVirtualDesktopsConfigForm</class>
+
  <widget class="QWidget" name="KWin::TemporaryVirtualDesktopsConfigForm">
-  <property name="geometry">
-   <rect>
-    <x>0</x>
-    <y>0</y>
-    <width>334</width>
-    <height>59</height>
-   </rect>
-  </property>
   <property name="windowTitle">
    <string>MACsimize6</string>
   </property>
-  <layout class="QFormLayout" name="formLayout">
-   <item row="0" column="0">
-    <widget class="QCheckBox" name="kcfg_handleFullscreen">
-     <property name="text">
-      <string>Enable fullscreen handler</string>
-     </property>
-     <property name="checked">
+
+  <layout class="QVBoxLayout" name="verticalLayout">
+
+   <property name="spacing">
+    <number>12</number>
+   </property>
+
+   <property name="leftMargin">
+    <number>12</number>
+   </property>
+
+   <property name="topMargin">
+    <number>12</number>
+   </property>
+
+   <property name="rightMargin">
+    <number>12</number>
+   </property>
+
+   <property name="bottomMargin">
+    <number>12</number>
+   </property>
+
+
+   <!-- ====================================================== -->
+   <!-- Description -->
+   <!-- ====================================================== -->
+
+   <item>
+    <widget class="QLabel" name="description">
+     <property name="wordWrap">
       <bool>true</bool>
      </property>
-    </widget>
-   </item>
-   <item row="1" column="0">
-    <widget class="QCheckBox" name="kcfg_handleMaximized">
      <property name="text">
-      <string>Enable maximized handler</string>
-     </property>
-     <property name="checked">
-      <bool>true</bool>
-     </property>
-    </widget>
-   </item>
-   <item row="2" column="0">
-    <widget class="QCheckBox" name="kcfg_moveToLast">
-     <property name="text">
-      <string>Move window to the last virtual desktop</string>
-     </property>
-     <property name="checked">
-      <bool>false</bool>
+      <string>
+Automatically moves maximized or fullscreen windows to temporary virtual desktops and restores them when they return to their normal size.
+      </string>
      </property>
     </widget>
    </item>
-   <item row="3" column="0">
-    <widget class="QCheckBox" name="kcfg_enableIfOnlyOne">
-     <property name="text">
-      <string>Enable only if one Screen is detected</string>
+
+
+   <!-- ====================================================== -->
+   <!-- Window handling -->
+   <!-- ====================================================== -->
+
+   <item>
+    <widget class="QGroupBox" name="groupHandling">
+     <property name="title">
+      <string>Window Handling</string>
      </property>
-     <property name="checked">
-      <bool>false</bool>
-     </property>
-    </widget>
-   </item>
-   <item row="4" column="0">
-     <widget class="QCheckBox" name="kcfg_enablePanelVisibility">
-       <property name="text">
-         <string>Toggle panels visbility</string>
-       </property>
-       <property name="checked">
-         <bool>false</bool>
-       </property>
-     </widget>
-   </item>
-   <item row="5" column="0">
-     <widget class="QCheckBox" name="kcfg_exclusiveDesktops">
-       <property name="text">
-         <string>Exclusive Virtual desktops</string>
-       </property>
-       <property name="checked">
+
+     <layout class="QVBoxLayout">
+
+      <item>
+       <widget class="QCheckBox" name="kcfg_handleMaximized">
+        <property name="text">
+         <string>Handle maximized windows</string>
+        </property>
+        <property name="checked">
          <bool>true</bool>
-       </property>
-     </widget>
+        </property>
+       </widget>
+      </item>
+
+      <item>
+       <widget class="QCheckBox" name="kcfg_handleFullscreen">
+        <property name="text">
+         <string>Handle fullscreen windows</string>
+        </property>
+        <property name="checked">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+
+      <item>
+       <widget class="QCheckBox" name="kcfg_moveToLast">
+        <property name="text">
+         <string>Create dedicated desktop at the end</string>
+        </property>
+       </widget>
+      </item>
+
+     </layout>
+    </widget>
    </item>
-   <item row="6" column="0">
-    <widget class="QLabel" name="Ignore">
-     <property name="text">
-      <string>Ignore:</string>
+
+
+   <!-- ====================================================== -->
+   <!-- Desktop behaviour -->
+   <!-- ====================================================== -->
+
+   <item>
+    <widget class="QGroupBox" name="groupDesktop">
+     <property name="title">
+      <string>Desktop Behaviour</string>
      </property>
+
+     <layout class="QVBoxLayout">
+
+      <item>
+       <widget class="QCheckBox" name="kcfg_exclusiveDesktops">
+        <property name="text">
+         <string>Dedicated desktops are exclusive</string>
+        </property>
+        <property name="checked">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+
+      <item>
+       <widget class="QCheckBox" name="kcfg_enableIfOnlyOne">
+        <property name="text">
+         <string>Only enable on single-monitor systems</string>
+        </property>
+       </widget>
+      </item>
+
+     </layout>
     </widget>
    </item>
-   <item row="6" column="1">
-    <widget class="QLineEdit" name="kcfg_SkipWindows">
-      <property name="text">
-        <string>lattedock, latte-dock, org.kde.spectacle, spectacle, org.kde.yakuake</string>
-      </property>
-      <property name="placeholderText">
-        <string>Comma separated list of window classes</string>
-      </property>
+
+
+   <!-- ====================================================== -->
+   <!-- Panels -->
+   <!-- ====================================================== -->
+
+   <item>
+    <widget class="QGroupBox" name="groupPanels">
+     <property name="title">
+      <string>Panels</string>
+     </property>
+
+     <layout class="QVBoxLayout">
+
+      <item>
+       <widget class="QCheckBox" name="kcfg_enablePanelVisibility">
+        <property name="text">
+         <string>Hide panels on dedicated desktops </string>
+        </property>
+       </widget>
+      </item>
+
+     </layout>
     </widget>
    </item>
-   <item row="7" column="0">
-     <widget class="QCheckBox" name="kcfg_debugMode">
-       <property name="text">
-         <string>Enable debug in kwin logs</string>
-       </property>
-       <property name="checked">
-         <bool>false</bool>
-       </property>
-     </widget>
+
+
+   <!-- ====================================================== -->
+   <!-- Ignored windows -->
+   <!-- ====================================================== -->
+
+   <item>
+    <widget class="QGroupBox" name="groupIgnored">
+     <property name="title">
+      <string>Ignored Window Classes</string>
+     </property>
+
+     <layout class="QVBoxLayout">
+
+      <item>
+       <widget class="QPlainTextEdit" name="kcfg_SkipWindows">
+        <property name="plainText">
+         <string>lattedock,
+latte-dock,
+org.kde.spectacle,
+spectacle,
+org.kde.yakuake</string>
+        </property>
+
+        <property name="placeholderText">
+         <string>One class per line or comma separated</string>
+        </property>
+
+        <property name="maximumHeight">
+         <number>90</number>
+        </property>
+       </widget>
+      </item>
+
+      <item>
+       <widget class="QLabel">
+        <property name="wordWrap">
+         <bool>true</bool>
+        </property>
+
+        <property name="text">
+         <string>
+Window classes listed here will never be managed by MACsimize6.
+         </string>
+        </property>
+       </widget>
+      </item>
+
+     </layout>
+    </widget>
    </item>
+
+
+   <!-- ====================================================== -->
+   <!-- Advanced -->
+   <!-- ====================================================== -->
+
+   <item>
+    <widget class="QGroupBox" name="groupAdvanced">
+     <property name="title">
+      <string>Advanced</string>
+     </property>
+
+     <layout class="QVBoxLayout">
+
+      <item>
+       <widget class="QCheckBox" name="kcfg_debugMode">
+        <property name="text">
+         <string>Enable debug logging</string>
+        </property>
+       </widget>
+      </item>
+
+     </layout>
+    </widget>
+   </item>
+
+   <item>
+    <spacer name="verticalSpacer">
+     <property name="orientation">
+      <enum>Qt::Vertical</enum>
+     </property>
+
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>20</width>
+       <height>40</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+
   </layout>
  </widget>
+
  <resources/>
 </ui>
