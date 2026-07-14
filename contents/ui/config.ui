@@ -175,7 +175,8 @@ Automatically moves maximized or fullscreen windows to temporary virtual desktop
 latte-dock,
 org.kde.spectacle,
 spectacle,
-org.kde.yakuake</string>
+org.kde.yakuake,
+xwaylandvideobridge</string>
         </property>
 
         <property name="placeholderText">
