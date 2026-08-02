@@ -457,6 +457,22 @@ function sameClassDesktop(window)
     return false;
 }
 
+function moveTransientToParentDesktop(window)
+{
+    if (!window || !window.transientFor)
+        return false;
+
+    const parent = window.transientFor;
+
+    if (!parent || !isManaged(parent))
+        return false;
+
+    logWindow(window, "Moving transient window to parent's desktop.");
+
+    window.desktops = parent.desktops;
+    return true;
+}
+
 //
 // Window evaluation
 //
@@ -708,27 +724,13 @@ function install()
     //
     workspace.windowAdded.connect(function(window) {
 
+        // Handle transient dialogs, toolbars, and other special windows
+        // before filtering them out of normal window tracking.
+        if (moveTransientToParentDesktop(window))
+            return;
 
         if (shouldSkip(window))
             return;
-
-        //
-        // Transient windows inherit the parent's desktop.
-        //
-        if (window.transientFor)
-        {
-            const parent = window.transientFor;
-
-            if (parent && isManaged(parent))
-            {
-                logWindow(window,
-                    "Moving transient window to parent's desktop.");
-
-                window.desktops = parent.desktops;
-
-                return;
-            }
-        }
 
         installWindowHandlers(window);
 
