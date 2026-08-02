@@ -16,6 +16,8 @@ var panelTimer = new QTimer();
 panelTimer.interval = 50;
 
 panelTimer.timeout.connect(function() {
+    // Stop the timer before updating panels visibility
+    panelTimer.stop();
     updatePanelVisibility();
 });
 
