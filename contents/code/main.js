@@ -51,8 +51,6 @@ function logWindow(window, message)
 
 const savedData = new Map();
 
-const managedDesktops = [];
-
 //
 // Windows to ignore
 //
@@ -202,32 +200,6 @@ function getNextDesktopNumber()
     }
 
     return workspace.desktops.length;
-}
-
-function createManagedDesktop(name)
-{
-    const index =
-        moveToLast
-            ? workspace.desktops.length
-            : getNextDesktopNumber();
-
-    workspace.createDesktop(index, name);
-
-    const desktop = workspace.desktops[index];
-
-    managedDesktops.push(desktop);
-
-    return desktop;
-}
-
-function removeManagedDesktop(desktop)
-{
-    const index = managedDesktops.indexOf(desktop);
-
-    if (index >= 0)
-        managedDesktops.splice(index, 1);
-
-    workspace.removeDesktop(desktop);
 }
 
 //
