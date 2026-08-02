@@ -725,6 +725,14 @@ function install()
             workspace.currentDesktop = mainDesktop;
         }
 
+        // installWindowHandlers can reject windows that should not be
+        // tracked. Do not allocate state for them because they have no
+        // closed handler to purge it.
+        const state = findState(window);
+
+        if (!state || !state.tracked)
+            return;
+
         //
         // Initialize maximize state for windows that
         // are already maximized when created.
