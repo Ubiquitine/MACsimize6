@@ -102,7 +102,11 @@ function getState(window)
 
             resourceClass: "",
 
-            dedicatedDesktop: null
+            dedicatedDesktop: null,
+
+            transitioning: false,
+
+            needsEvaluation: false
         });
     }
 
@@ -132,6 +136,32 @@ function isManaged(window)
     const state = findState(window);
 
     return state !== null && state.dedicatedDesktop !== null;
+}
+
+function beginDesktopTransition(state)
+{
+    if (state.transitioning)
+    {
+        state.needsEvaluation = true;
+        return false;
+    }
+
+    state.transitioning = true;
+    return true;
+}
+
+function finishDesktopTransition(window, state)
+{
+    if (findState(window) !== state)
+        return;
+
+    state.transitioning = false;
+
+    if (!state.needsEvaluation)
+        return;
+
+    state.needsEvaluation = false;
+    evaluateWindow(window);
 }
 
 function setTracked(window, tracked)
@@ -306,16 +336,26 @@ function moveToNewDesktop(window)
         return;
     }
 
+    if (!beginDesktopTransition(state))
+        return;
+
     logWindow(window, "Creating dedicated desktop.");
 
-    state.resourceClass = getWindowClass(window);
+    try
+    {
+        state.resourceClass = getWindowClass(window);
 
-    const desktop = createManagedDesktop(window);
+        const desktop = createManagedDesktop(window);
 
-    state.dedicatedDesktop = desktop;
+        state.dedicatedDesktop = desktop;
 
-    window.desktops = [desktop];
-    workspace.currentDesktop = desktop;
+        window.desktops = [desktop];
+        workspace.currentDesktop = desktop;
+    }
+    finally
+    {
+        finishDesktopTransition(window, state);
+    }
 }
 
 function restoreDesktop(window)
@@ -328,21 +368,31 @@ function restoreDesktop(window)
         return;
     }
 
+    if (!beginDesktopTransition(state))
+        return;
+
     const desktop = state.dedicatedDesktop;
 
     logWindow(window, "Restoring to the main desktop.");
 
-    //
-    // Clear our state first so recursive events
-    // don't think we're still managed.
-    //
-    state.dedicatedDesktop = null;
+    try
+    {
+        //
+        // Clear our state first so recursive events
+        // don't think we're still managed.
+        //
+        state.dedicatedDesktop = null;
 
-    window.desktops = [workspace.desktops[0]];
+        window.desktops = [workspace.desktops[0]];
 
-    workspace.currentDesktop = workspace.desktops[0];
+        workspace.currentDesktop = workspace.desktops[0];
 
-    removeManagedDesktop(desktop);
+        removeManagedDesktop(desktop);
+    }
+    finally
+    {
+        finishDesktopTransition(window, state);
+    }
 }
 
 function updateDedicatedDesktopName(window)
@@ -386,6 +436,12 @@ function sameClassDesktop(window)
 function evaluateWindow(window)
 {
     const state = getState(window);
+
+    if (state.transitioning)
+    {
+        state.needsEvaluation = true;
+        return;
+    }
 
     //
     // Minimized windows are always restored to the main desktop.
