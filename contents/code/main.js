@@ -395,6 +395,34 @@ function restoreDesktop(window)
     }
 }
 
+function cleanupClosedWindow(window)
+{
+    const state = findState(window);
+
+    if (!state)
+        return;
+
+    const desktop = state.dedicatedDesktop;
+
+    // The window is already being destroyed, so do not assign any of its
+    // properties. Only return the workspace to a valid desktop and remove
+    // the dedicated desktop that belonged to this window.
+    state.dedicatedDesktop = null;
+    state.needsEvaluation = false;
+
+    if (desktop)
+    {
+        const mainDesktop = workspace.desktops[0];
+
+        if (mainDesktop && workspace.currentDesktop === desktop)
+            workspace.currentDesktop = mainDesktop;
+
+        removeManagedDesktop(desktop);
+    }
+
+    purgeState(window);
+}
+
 function updateDedicatedDesktopName(window)
 {
     const state = getState(window);
@@ -607,9 +635,7 @@ function installWindowHandlers(window)
 
         logWindow(window, "Closed.");
 
-        restoreDesktop(window);
-
-        purgeState(window);
+        cleanupClosedWindow(window);
 
     });
 }
