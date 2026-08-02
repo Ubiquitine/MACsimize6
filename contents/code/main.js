@@ -109,6 +109,14 @@ function getState(window)
     return savedData.get(id);
 }
 
+function findState(window)
+{
+    if (!window)
+        return null;
+
+    return savedData.get(window.internalId) || null;
+}
+
 function purgeState(window)
 {
     savedData.delete(window.internalId);
@@ -121,7 +129,9 @@ function isTracked(window)
 
 function isManaged(window)
 {
-    return getState(window).dedicatedDesktop !== null;
+    const state = findState(window);
+
+    return state !== null && state.dedicatedDesktop !== null;
 }
 
 function setTracked(window, tracked)
