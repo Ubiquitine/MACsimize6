@@ -191,6 +191,25 @@ function getWindowClass(window)
     return window.resourceClass.toString().toLowerCase();
 }
 
+function getPriorDesktopNumber()
+{
+    let managedDesktops = [];
+    for (let window of workspace.windowList())
+    {
+        const desktop = window.desktops[0];
+        if (isManagedDesktop(desktop))
+            managedDesktops.push(desktop.id);
+    }
+
+    for (i = workspace.currentDesktop.x11DesktopNumber - 2; i >= 0; i--)
+    {
+        if (!managedDesktops.includes(workspace.desktops[i].id))
+            return i;
+    }
+
+    return 0;
+}
+
 function getNextDesktopNumber()
 {
     for (let i = 0; i < workspace.desktops.length; ++i)
@@ -345,7 +364,7 @@ function restoreDesktop(window)
 
     const desktop = state.dedicatedDesktop;
 
-    logWindow(window, "Restoring to the main desktop.");
+    logWindow(window, "Restoring to the prior desktop.");
 
     try
     {
@@ -355,9 +374,9 @@ function restoreDesktop(window)
         //
         state.dedicatedDesktop = null;
 
-        window.desktops = [workspace.desktops[0]];
-
-        workspace.currentDesktop = workspace.desktops[0];
+        let newDesktop = workspace.desktops[getPriorDesktopNumber()];
+        window.desktops = [newDesktop];
+        workspace.currentDesktop = newDesktop;
 
         removeManagedDesktop(desktop);
     }
@@ -384,10 +403,10 @@ function cleanupClosedWindow(window)
 
     if (desktop)
     {
-        const mainDesktop = workspace.desktops[0];
+        const priorDesktop = workspace.desktops[getPriorDesktopNumber()];
 
-        if (mainDesktop && workspace.currentDesktop === desktop)
-            workspace.currentDesktop = mainDesktop;
+        if (priorDesktop && workspace.currentDesktop === desktop)
+            workspace.currentDesktop = priorDesktop;
 
         removeManagedDesktop(desktop);
     }
@@ -460,7 +479,7 @@ function evaluateWindow(window)
     }
 
     //
-    // Minimized windows are always restored to the main desktop.
+    // Minimized windows are always restored to the prior desktop.
     //
     if (window.minimized)
     {
@@ -708,21 +727,21 @@ function install()
 
         //
         // Move unrelated windows from the
-        // dedicated desktop to the main desktop.
+        // dedicated desktop to the prior desktop.
         //
-        const mainDesktop = workspace.desktops[0];
+        const priorDesktop = workspace.desktops[getPriorDesktopNumber()];
 
-        if (workspace.currentDesktop !== mainDesktop &&
+        if (workspace.currentDesktop !== priorDesktop &&
             isManagedDesktop(workspace.currentDesktop) &&
             !sameClassDesktop(window) &&
             exclusiveDesktops)
         {
             logWindow(window,
-                "Moving unrelated window to main desktop.");
+                "Moving unrelated window to prior desktop.");
 
-            window.desktops = [mainDesktop];
+            window.desktops = [priorDesktop];
 
-            workspace.currentDesktop = mainDesktop;
+            workspace.currentDesktop = priorDesktop;
         }
 
         // installWindowHandlers can reject windows that should not be
