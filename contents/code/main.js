@@ -650,9 +650,9 @@ function installWindowHandlers(window)
 function updatePanelVisibility()
 {
     let panelVisibility =
-    workspace.currentDesktop === workspace.desktops[0]
-        ? "none"
-        : "dodgewindows";
+    isManagedDesktop(workspace.currentDesktop)
+        ? "dodgewindows"
+        : "none";
 
     if (panelVisibility === lastPanelMode)
         return;
