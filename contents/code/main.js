@@ -192,7 +192,7 @@ function getWindowClass(window)
     return window.resourceClass.toString().toLowerCase();
 }
 
-function getPriorDesktopNumber()
+function getUnmanagedDesktopNumber()
 {
     if (!mainDesktop)
     {
@@ -360,7 +360,7 @@ function restoreDesktop(window)
 
     const desktop = state.dedicatedDesktop;
 
-    logWindow(window, "Restoring to the prior desktop.");
+    logWindow(window, "Restoring to unmanaged desktop.");
 
     try
     {
@@ -370,7 +370,7 @@ function restoreDesktop(window)
         //
         state.dedicatedDesktop = null;
 
-        let newDesktop = workspace.desktops[getPriorDesktopNumber()];
+        let newDesktop = workspace.desktops[getUnmanagedDesktopNumber()];
         window.desktops = [newDesktop];
         workspace.currentDesktop = newDesktop;
 
@@ -399,10 +399,10 @@ function cleanupClosedWindow(window)
 
     if (desktop)
     {
-        const priorDesktop = workspace.desktops[getPriorDesktopNumber()];
+        const newDesktop = workspace.desktops[getUnmanagedDesktopNumber()];
 
-        if (priorDesktop && workspace.currentDesktop === desktop)
-            workspace.currentDesktop = priorDesktop;
+        if (newDesktop && workspace.currentDesktop === newDesktop)
+            workspace.currentDesktop = newDesktop;
 
         removeManagedDesktop(desktop);
     }
@@ -475,7 +475,7 @@ function evaluateWindow(window)
     }
 
     //
-    // Minimized windows are always restored to the prior desktop.
+    // Minimized windows are always restored to an unmanaged desktop.
     //
     if (window.minimized)
     {
@@ -723,21 +723,21 @@ function install()
 
         //
         // Move unrelated windows from the
-        // dedicated desktop to the prior desktop.
+        // dedicated desktop to an unmanaged desktop.
         //
-        const priorDesktop = workspace.desktops[getPriorDesktopNumber()];
+        const newDesktop = workspace.desktops[getUnmanagedDesktopNumber()];
 
-        if (workspace.currentDesktop !== priorDesktop &&
+        if (workspace.currentDesktop !== newDesktop &&
             isManagedDesktop(workspace.currentDesktop) &&
             !sameClassDesktop(window) &&
             exclusiveDesktops)
         {
             logWindow(window,
-                "Moving unrelated window to prior desktop.");
+                "Moving unrelated window to unmanaged desktop.");
 
-            window.desktops = [priorDesktop];
+            window.desktops = [newDesktop];
 
-            workspace.currentDesktop = priorDesktop;
+            workspace.currentDesktop = newDesktop;
         }
 
         // installWindowHandlers can reject windows that should not be
