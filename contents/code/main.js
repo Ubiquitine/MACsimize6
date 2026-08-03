@@ -8,6 +8,7 @@ const moveToLast            = readConfig("moveToLast", false);
 const enableIfOnlyOne       = readConfig("enableIfOnlyOne", false);
 const enablePanelVisibility = readConfig("enablePanelVisibility", false);
 const exclusiveDesktops     = readConfig("exclusiveDesktops", true);
+const mainDesktop           = readConfig("mainDesktop", false);
 const debugMode             = readConfig("debugMode", false);
 
 var lastPanelMode = "";
@@ -193,10 +194,13 @@ function getWindowClass(window)
 
 function getPriorDesktopNumber()
 {
-    for (i = workspace.currentDesktop.x11DesktopNumber - 2; i >= 0; i--)
+    if (!mainDesktop)
     {
-        if (!isManagedDesktop(workspace.desktops[i]))
-            return i;
+        for (i = workspace.currentDesktop.x11DesktopNumber - 2; i >= 0; i--)
+        {
+            if (!isManagedDesktop(workspace.desktops[i]))
+                return i;
+        }
     }
 
     return 0;

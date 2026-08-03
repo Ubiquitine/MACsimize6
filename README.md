@@ -9,6 +9,7 @@ Imitates the way macOS handles maximized and full-screened windows.
 ### Core Features:
 * **Automatic Virtual Desktop Creation**: The script moves full-screened and/or (fully) maximized windows to a new virtual desktop.
 * **Desktop Restoration**: When a window is restored to regular state (not full-screened and not fully maximized), the script returns it to the prior regular desktop and removes the temporary virtual desktop.
+* **Main Desktop Focus**: New non-maximized windows opened while on a full-screen application's desktop are automatically moved to and opened on the main desktop.
 * **Dialog & Toolbar Support**: Related windows (dialogs, toolbars, etc.) are automatically moved to the same desktop as their parent window.
 * **Context Menu Safety**: Popup menus and context menus (e.g., Dolphin's right-click menu) stay on their current desktop to prevent KWin crashes.
 * **Skip List Support**: Applications in the skip list are exempt from all rules and can open freely on any desktop.

@@ -119,6 +119,17 @@ Automatically moves maximized or fullscreen windows to temporary virtual desktop
       </item>
 
       <item>
+       <widget class="QCheckBox" name="kcfg_mainDesktop">
+        <property name="text">
+         <string>Treat first desktop as main desktop</string>
+        </property>
+        <property name="checked">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+
+      <item>
        <widget class="QCheckBox" name="kcfg_enableIfOnlyOne">
         <property name="text">
          <string>Only enable on single-monitor systems</string>
