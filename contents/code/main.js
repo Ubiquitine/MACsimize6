@@ -193,17 +193,9 @@ function getWindowClass(window)
 
 function getPriorDesktopNumber()
 {
-    let managedDesktops = [];
-    for (let window of workspace.windowList())
-    {
-        const desktop = window.desktops[0];
-        if (isManagedDesktop(desktop))
-            managedDesktops.push(desktop.id);
-    }
-
     for (i = workspace.currentDesktop.x11DesktopNumber - 2; i >= 0; i--)
     {
-        if (!managedDesktops.includes(workspace.desktops[i].id))
+        if (!isManagedDesktop(workspace.desktops[i]))
             return i;
     }
 
