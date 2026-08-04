@@ -8,6 +8,7 @@ const moveToLast            = readConfig("moveToLast", false);
 const enableIfOnlyOne       = readConfig("enableIfOnlyOne", false);
 const enablePanelVisibility = readConfig("enablePanelVisibility", false);
 const exclusiveDesktops     = readConfig("exclusiveDesktops", true);
+const restoreToFirstDesktop = readConfig("restoreToFirstDesktop", false);
 const debugMode             = readConfig("debugMode", false);
 
 var lastPanelMode = "";
@@ -191,6 +192,20 @@ function getWindowClass(window)
     return window.resourceClass.toString().toLowerCase();
 }
 
+function getUnmanagedDesktopNumber()
+{
+    if (!restoreToFirstDesktop)
+    {
+        for (i = workspace.currentDesktop.x11DesktopNumber - 2; i >= 0; i--)
+        {
+            if (!isManagedDesktop(workspace.desktops[i]))
+                return i;
+        }
+    }
+
+    return 0;
+}
+
 function getNextDesktopNumber()
 {
     for (let i = 0; i < workspace.desktops.length; ++i)
@@ -345,7 +360,7 @@ function restoreDesktop(window)
 
     const desktop = state.dedicatedDesktop;
 
-    logWindow(window, "Restoring to the main desktop.");
+    logWindow(window, "Restoring to unmanaged desktop.");
 
     try
     {
@@ -355,9 +370,8 @@ function restoreDesktop(window)
         //
         state.dedicatedDesktop = null;
 
-        window.desktops = [workspace.desktops[0]];
-
-        workspace.currentDesktop = workspace.desktops[0];
+        workspace.currentDesktop = workspace.desktops[getUnmanagedDesktopNumber()];
+        window.desktops = [workspace.currentDesktop];
 
         removeManagedDesktop(desktop);
     }
@@ -384,10 +398,8 @@ function cleanupClosedWindow(window)
 
     if (desktop)
     {
-        const mainDesktop = workspace.desktops[0];
-
-        if (mainDesktop && workspace.currentDesktop === desktop)
-            workspace.currentDesktop = mainDesktop;
+        if (workspace.currentDesktop === desktop)
+            workspace.currentDesktop = workspace.desktops[getUnmanagedDesktopNumber()];
 
         removeManagedDesktop(desktop);
     }
@@ -460,7 +472,7 @@ function evaluateWindow(window)
     }
 
     //
-    // Minimized windows are always restored to the main desktop.
+    // Minimized windows are always restored to an unmanaged desktop.
     //
     if (window.minimized)
     {
@@ -635,9 +647,9 @@ function installWindowHandlers(window)
 function updatePanelVisibility()
 {
     let panelVisibility =
-    workspace.currentDesktop === workspace.desktops[0]
-        ? "none"
-        : "dodgewindows";
+    isManagedDesktop(workspace.currentDesktop)
+        ? "dodgewindows"
+        : "none";
 
     if (panelVisibility === lastPanelMode)
         return;
@@ -708,21 +720,21 @@ function install()
 
         //
         // Move unrelated windows from the
-        // dedicated desktop to the main desktop.
+        // dedicated desktop to an unmanaged desktop.
         //
-        const mainDesktop = workspace.desktops[0];
+        const newDesktop = workspace.desktops[getUnmanagedDesktopNumber()];
 
-        if (workspace.currentDesktop !== mainDesktop &&
+        if (workspace.currentDesktop !== newDesktop &&
             isManagedDesktop(workspace.currentDesktop) &&
             !sameClassDesktop(window) &&
             exclusiveDesktops)
         {
             logWindow(window,
-                "Moving unrelated window to main desktop.");
+                "Moving unrelated window to unmanaged desktop.");
 
-            window.desktops = [mainDesktop];
+            window.desktops = [newDesktop];
 
-            workspace.currentDesktop = mainDesktop;
+            workspace.currentDesktop = newDesktop;
         }
 
         // installWindowHandlers can reject windows that should not be
