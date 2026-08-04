@@ -90,6 +90,24 @@ Automatically moves maximized or fullscreen windows to temporary virtual desktop
        </widget>
       </item>
 
+      <item>
+       <widget class="QCheckBox" name="kcfg_useAbsoluteEnds">
+        <property name="text">
+         <string>Use absolute first and last desktops</string>
+        </property>
+        <property name="toolTip">
+         <string>When enabled, windows will always be restored to
+the very first desktop.
+
+If paired with creating desktops at the end, they
+will be created after the very last desktop.</string>
+        </property>
+        <property name="checked">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+
      </layout>
     </widget>
    </item>
@@ -114,17 +132,6 @@ Automatically moves maximized or fullscreen windows to temporary virtual desktop
         </property>
         <property name="checked">
          <bool>true</bool>
-        </property>
-       </widget>
-      </item>
-
-      <item>
-       <widget class="QCheckBox" name="kcfg_restoreToFirstDesktop">
-        <property name="text">
-         <string>Always restore windows to the first desktop</string>
-        </property>
-        <property name="checked">
-         <bool>false</bool>
         </property>
        </widget>
       </item>

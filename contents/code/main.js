@@ -8,7 +8,7 @@ const moveToLast            = readConfig("moveToLast", false);
 const enableIfOnlyOne       = readConfig("enableIfOnlyOne", false);
 const enablePanelVisibility = readConfig("enablePanelVisibility", false);
 const exclusiveDesktops     = readConfig("exclusiveDesktops", true);
-const restoreToFirstDesktop = readConfig("restoreToFirstDesktop", false);
+const useAbsoluteEnds      = readConfig("useAbsoluteEnds", false);
 const debugMode             = readConfig("debugMode", false);
 
 var lastPanelMode = "";
@@ -194,7 +194,7 @@ function getWindowClass(window)
 
 function getUnmanagedDesktopNumber()
 {
-    if (!restoreToFirstDesktop)
+    if (!useAbsoluteEnds)
     {
         for (i = workspace.currentDesktop.x11DesktopNumber - 2; i >= 0; i--)
         {
@@ -210,7 +210,7 @@ function getNextDesktopNumber()
 {
     if (moveToLast)
     {
-        if (!restoreToFirstDesktop)
+        if (!useAbsoluteEnds)
         {
             // Try to find the end of the current block of managed desktops
             for (let i = workspace.currentDesktop.x11DesktopNumber; i < workspace.desktops.length; ++i)
