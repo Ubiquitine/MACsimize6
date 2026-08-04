@@ -8,7 +8,7 @@ const moveToLast            = readConfig("moveToLast", false);
 const enableIfOnlyOne       = readConfig("enableIfOnlyOne", false);
 const enablePanelVisibility = readConfig("enablePanelVisibility", false);
 const exclusiveDesktops     = readConfig("exclusiveDesktops", true);
-const restoreToFirstDesktop = readConfig("restoreToFirstDesktop", false);
+const useAbsoluteEnds      = readConfig("useAbsoluteEnds", false);
 const debugMode             = readConfig("debugMode", false);
 
 var lastPanelMode = "";
@@ -194,7 +194,7 @@ function getWindowClass(window)
 
 function getUnmanagedDesktopNumber()
 {
-    if (!restoreToFirstDesktop)
+    if (!useAbsoluteEnds)
     {
         for (i = workspace.currentDesktop.x11DesktopNumber - 2; i >= 0; i--)
         {
@@ -208,13 +208,26 @@ function getUnmanagedDesktopNumber()
 
 function getNextDesktopNumber()
 {
-    for (let i = 0; i < workspace.desktops.length; ++i)
+    if (moveToLast)
     {
-        if (workspace.desktops[i] === workspace.currentDesktop)
-            return i + 1;
-    }
+        if (!useAbsoluteEnds)
+        {
+            // Try to find the end of the current block of managed desktops
+            for (let i = workspace.currentDesktop.x11DesktopNumber; i < workspace.desktops.length; ++i)
+            {
+                if (!isManagedDesktop(workspace.desktops[i]))
+                    return i;
+            }
+        }
 
-    return workspace.desktops.length;
+        return workspace.desktops.length;
+    }
+    else
+    {
+        // The X11 Desktop Number is 1-indexed, the return value
+        // is 0-indexed, so one is already added.
+        return workspace.currentDesktop.x11DesktopNumber;
+    }
 }
 
 //
@@ -289,9 +302,7 @@ function isManagedDesktop(desktop)
 
 function createManagedDesktop(window)
 {
-    const index = moveToLast
-        ? workspace.desktops.length
-        : getNextDesktopNumber();
+    const index = getNextDesktopNumber();
 
     workspace.createDesktop(index, window.caption.toString());
 
