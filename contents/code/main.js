@@ -370,9 +370,8 @@ function restoreDesktop(window)
         //
         state.dedicatedDesktop = null;
 
-        let newDesktop = workspace.desktops[getUnmanagedDesktopNumber()];
-        window.desktops = [newDesktop];
-        workspace.currentDesktop = newDesktop;
+        workspace.currentDesktop = workspace.desktops[getUnmanagedDesktopNumber()];
+        window.desktops = [workspace.currentDesktop];
 
         removeManagedDesktop(desktop);
     }
@@ -399,10 +398,8 @@ function cleanupClosedWindow(window)
 
     if (desktop)
     {
-        const newDesktop = workspace.desktops[getUnmanagedDesktopNumber()];
-
-        if (newDesktop && workspace.currentDesktop === desktop)
-            workspace.currentDesktop = newDesktop;
+        if (workspace.currentDesktop === desktop)
+            workspace.currentDesktop = workspace.desktops[getUnmanagedDesktopNumber()];
 
         removeManagedDesktop(desktop);
     }
