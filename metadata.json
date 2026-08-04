@@ -13,10 +13,13 @@
             },
             {
                 "Name": "Dean Ma"
+            },
+            {
+                "Name": "Pk11"
             }
         ],
         "Id": "macsimize6",
-        "Version": "0.8.1",
+        "Version": "0.8.2",
         "License": "GPLv3",
         "EnabledByDefault": false
     },
