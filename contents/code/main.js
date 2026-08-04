@@ -401,7 +401,7 @@ function cleanupClosedWindow(window)
     {
         const newDesktop = workspace.desktops[getUnmanagedDesktopNumber()];
 
-        if (newDesktop && workspace.currentDesktop === newDesktop)
+        if (newDesktop && workspace.currentDesktop === desktop)
             workspace.currentDesktop = newDesktop;
 
         removeManagedDesktop(desktop);
