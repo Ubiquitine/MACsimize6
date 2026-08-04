@@ -150,6 +150,44 @@ will be created after the very last desktop.</string>
 
 
    <!-- ====================================================== -->
+   <!-- Animation -->
+   <!-- ====================================================== -->
+
+   <item>
+    <widget class="QGroupBox" name="groupPanels">
+     <property name="title">
+      <string>Animation</string>
+     </property>
+
+     <layout class="QVBoxLayout">
+
+      <item>
+       <widget class="QLabel" name="SmoothAnimationTime">
+        <property name="text">
+         <string>Smoothing animation time: (default 700ms, set to 0 to disable)</string>
+        </property>
+       </widget>
+      </item>
+
+      <item>
+       <widget class="QLineEdit" name="kcfg_smoothAnimationTime">
+        <property name="text">
+         <string>700</string>
+        </property>
+        <property name="placeholderText">
+         <string>time in miliseconds, 0 to disable</string>
+        </property>
+        <property name="clearButtonEnabled">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+
+     </layout>
+    </widget>
+   </item>
+
+   <!-- ====================================================== -->
    <!-- Panels -->
    <!-- ====================================================== -->
 

@@ -9,18 +9,16 @@ const enableIfOnlyOne       = readConfig("enableIfOnlyOne", false);
 const enablePanelVisibility = readConfig("enablePanelVisibility", false);
 const exclusiveDesktops     = readConfig("exclusiveDesktops", true);
 const useAbsoluteEnds      = readConfig("useAbsoluteEnds", false);
+const smoothAnimationTime   = readConfig("smoothAnimationTime", 700);
 const debugMode             = readConfig("debugMode", false);
 
-var lastPanelMode = "";
-var panelTimer = new QTimer();
 
-panelTimer.interval = 50;
+//
+// Globals
+//
 
-panelTimer.timeout.connect(function() {
-    // Stop the timer before updating panels visibility
-    panelTimer.stop();
-    updatePanelVisibility();
-});
+let lastPanelMode = "";
+let panelVisibilityLock = false;
 
 //
 // Constants
@@ -279,6 +277,22 @@ function shouldSkip(window)
     return false;
 }
 
+function delayedCall(delay, fn)
+{
+    if (delay)
+    {
+        let timer = new QTimer();
+        timer.interval = delay;
+        timer.singleShot = true;
+        timer.timeout.connect(fn);
+        timer.start();
+    }
+    else
+    {
+        fn();
+    }
+}
+
 //
 // Desktop management
 //
@@ -317,6 +331,32 @@ function removeManagedDesktop(desktop)
     workspace.removeDesktop(desktop);
 }
 
+function moveToDesktop(window, newDesktop, oldDesktop) {
+    // Changing panel visibility interrupts the maximize
+    // animation, but the un-maximize animation is fine.
+    panelVisibilityLock = !oldDesktop;
+
+    if (smoothAnimationTime)
+        window.onAllDesktops = true;
+
+    workspace.currentDesktop = newDesktop;
+
+    delayedCall(smoothAnimationTime, function() {
+
+        window.onAllDesktops = false;
+        window.desktops = [newDesktop];
+
+        panelVisibilityLock = false;
+
+        if (enablePanelVisibility)
+            updatePanelVisibility();
+
+        if (oldDesktop)
+            removeManagedDesktop(oldDesktop);
+
+    });
+}
+
 function moveToNewDesktop(window)
 {
     if (enableIfOnlyOne &&
@@ -347,8 +387,7 @@ function moveToNewDesktop(window)
 
         state.dedicatedDesktop = desktop;
 
-        window.desktops = [desktop];
-        workspace.currentDesktop = desktop;
+        moveToDesktop(window, desktop);
     }
     finally
     {
@@ -369,7 +408,7 @@ function restoreDesktop(window)
     if (!beginDesktopTransition(state))
         return;
 
-    const desktop = state.dedicatedDesktop;
+    const currentDesktop = state.dedicatedDesktop;
 
     logWindow(window, "Restoring to unmanaged desktop.");
 
@@ -381,10 +420,7 @@ function restoreDesktop(window)
         //
         state.dedicatedDesktop = null;
 
-        workspace.currentDesktop = workspace.desktops[getUnmanagedDesktopNumber()];
-        window.desktops = [workspace.currentDesktop];
-
-        removeManagedDesktop(desktop);
+        moveToDesktop(window, workspace.desktops[getUnmanagedDesktopNumber()], currentDesktop);
     }
     finally
     {
@@ -657,6 +693,9 @@ function installWindowHandlers(window)
 
 function updatePanelVisibility()
 {
+    if (panelVisibilityLock)
+        return;
+
     let panelVisibility =
     isManagedDesktop(workspace.currentDesktop)
         ? "dodgewindows"
@@ -781,8 +820,7 @@ function install()
     {
        workspace.currentDesktopChanged.connect(function() {
 
-            panelTimer.stop();
-            panelTimer.start();
+            updatePanelVisibility();
 
         });
     }
