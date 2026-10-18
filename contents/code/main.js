@@ -234,7 +234,11 @@ function getNextDesktopNumber()
 
 function shouldSkip(window)
 {
+    // Windows without a taskbar entry (layer-shell popups such as fuzzel, recording overlays such as
+    // Handy's, OSDs) are not app windows: KWin reports some as normal windows, and moving them to
+    // another desktop switches the screen away from the app they serve.
     if (!window ||
+        window.skipTaskbar ||
         window.appletPopup ||
         window.comboBox ||
         window.criticalNotification ||
