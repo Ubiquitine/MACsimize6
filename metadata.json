@@ -19,7 +19,7 @@
             }
         ],
         "Id": "macsimize6",
-        "Version": "0.8.2",
+        "Version": "0.8.3",
         "License": "GPLv3",
         "EnabledByDefault": false
     },
