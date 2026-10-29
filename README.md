@@ -9,10 +9,16 @@ Imitates the way macOS handles maximized and full-screened windows.
 ### Core Features:
 * **Automatic Virtual Desktop Creation**: The script moves full-screened and/or (fully) maximized windows to a new virtual desktop.
 * **Desktop Restoration**: When a window is restored to regular state (not full-screened and not fully maximized), the script returns it to a regular desktop and removes the temporary virtual desktop.
+* **Manual Desktop Removal**: Removing a dedicated desktop manually restores its window to normal size, exits fullscreen, and moves it to a regular desktop so other dedicated desktops stay exclusive.
+
 * **Regular Desktop Support**: New non-maximized windows opened while on a full-screen application's desktop are automatically moved to and opened on a regular desktop.
 * **Dialog & Toolbar Support**: Related windows (dialogs, toolbars, etc.) are automatically moved to the same desktop as their parent window.
 * **Context Menu Safety**: Popup menus and context menus (e.g., Dolphin's right-click menu) stay on their current desktop to prevent KWin crashes.
 * **Skip List Support**: Applications in the skip list are exempt from all rules and can open freely on any desktop.
+
+The Pager widget's **Remove Virtual Desktop** menu removes the last desktop, regardless of the tile clicked. Use Overview or **System Settings → Virtual Desktops** to remove a specific desktop.
+
+Known limitation: Removing the last regular desktop can move its ordinary windows onto another application's dedicated desktop. This pre-existing behavior is separate from restoring a window whose managed desktop was removed; keep a regular desktop available for ordinary windows.
 
 ### Behavior Logic:
 1. When a window is maximized, a new virtual desktop is created after the current one, and the window is moved to it

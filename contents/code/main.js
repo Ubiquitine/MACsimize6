@@ -18,7 +18,7 @@ const debugMode             = readConfig("debugMode", false);
 //
 
 let lastPanelMode = "";
-let panelVisibilityLock = false;
+let panelVisibilityLock = 0;
 
 //
 // Constants
@@ -49,6 +49,7 @@ function logWindow(window, message)
 //
 
 const savedData = new Map();
+const pendingDesktopRemovals = new Set();
 
 //
 // Windows to ignore
@@ -100,6 +101,8 @@ function getState(window)
             resourceClass: "",
 
             dedicatedDesktop: null,
+
+            moveGeneration: 0,
 
             transitioning: false,
 
@@ -194,12 +197,21 @@ function getUnmanagedDesktopNumber()
 {
     if (!useAbsoluteEnds)
     {
-        for (i = workspace.currentDesktop.x11DesktopNumber - 2; i >= 0; i--)
+        for (let i = workspace.currentDesktop.x11DesktopNumber - 2; i >= 0; i--)
         {
             if (!isManagedDesktop(workspace.desktops[i]))
                 return i;
         }
     }
+
+    const index = workspace.desktops.findIndex(desktop => !isManagedDesktop(desktop));
+
+    if (index >= 0)
+        return index;
+
+    workspace.createDesktop(0, "");
+    if (isManagedDesktop(workspace.desktops[0]))
+        throw new Error("Cannot create an unmanaged desktop");
 
     return 0;
 }
@@ -306,6 +318,9 @@ function isManagedDesktop(desktop)
     if (!desktop)
         return false;
 
+    if (pendingDesktopRemovals.has(desktop.id))
+        return true;
+
     for (const state of savedData.values())
     {
         if (!state.dedicatedDesktop)
@@ -336,9 +351,19 @@ function removeManagedDesktop(desktop)
 }
 
 function moveToDesktop(window, newDesktop, oldDesktop) {
+    const windowId = window.internalId;
+    const state = getState(window);
+    const generation = ++state.moveGeneration;
+    const newDesktopId = newDesktop.id;
+    const oldDesktopId = oldDesktop ? oldDesktop.id : null;
+
+    if (oldDesktopId)
+        pendingDesktopRemovals.add(oldDesktopId);
+
     // Changing panel visibility interrupts the maximize
     // animation, but the un-maximize animation is fine.
-    panelVisibilityLock = !oldDesktop;
+    if (!oldDesktop)
+        ++panelVisibilityLock;
 
     if (smoothAnimationTime)
         window.onAllDesktops = true;
@@ -347,16 +372,40 @@ function moveToDesktop(window, newDesktop, oldDesktop) {
 
     delayedCall(smoothAnimationTime, function() {
 
-        window.onAllDesktops = false;
-        window.desktops = [newDesktop];
+        if (state.moveGeneration === generation)
+        {
+            // Desktop QObjects may have been destroyed during the animation.
+            let destination = workspace.desktops.find(desktop => desktop.id === newDesktopId);
 
-        panelVisibilityLock = false;
+            if (savedData.get(windowId) === state)
+            {
+                if (!destination)
+                {
+                    // The retired source must not be selected as the replacement.
+                    const source = workspace.desktops.find(desktop => desktop.id === oldDesktopId);
+                    if (source)
+                        removeManagedDesktop(source);
+
+                    destination = workspace.desktops[getUnmanagedDesktopNumber()];
+                }
+
+                window.onAllDesktops = false;
+                window.desktops = [destination];
+            }
+        }
+
+        if (!oldDesktop)
+            --panelVisibilityLock;
 
         if (enablePanelVisibility)
             updatePanelVisibility();
 
-        if (oldDesktop)
-            removeManagedDesktop(oldDesktop);
+        const source = workspace.desktops.find(desktop => desktop.id === oldDesktopId);
+
+        if (source)
+            removeManagedDesktop(source);
+
+        pendingDesktopRemovals.delete(oldDesktopId);
 
     });
 }
@@ -418,13 +467,15 @@ function restoreDesktop(window)
 
     try
     {
+        const desktop = workspace.desktops[getUnmanagedDesktopNumber()];
+
         //
         // Clear our state first so recursive events
         // don't think we're still managed.
         //
         state.dedicatedDesktop = null;
 
-        moveToDesktop(window, workspace.desktops[getUnmanagedDesktopNumber()], currentDesktop);
+        moveToDesktop(window, desktop, currentDesktop);
     }
     finally
     {
@@ -440,6 +491,7 @@ function cleanupClosedWindow(window)
         return;
 
     const desktop = state.dedicatedDesktop;
+    const wasCurrent = desktop && workspace.currentDesktop === desktop;
 
     // The window is already being destroyed, so do not assign any of its
     // properties. Only return the workspace to a valid desktop and remove
@@ -449,10 +501,10 @@ function cleanupClosedWindow(window)
 
     if (desktop)
     {
-        if (workspace.currentDesktop === desktop)
-            workspace.currentDesktop = workspace.desktops[getUnmanagedDesktopNumber()];
-
         removeManagedDesktop(desktop);
+
+        if (wasCurrent)
+            workspace.currentDesktop = workspace.desktops[getUnmanagedDesktopNumber()];
     }
 
     purgeState(window);
@@ -734,6 +786,56 @@ function install()
 {
     log("Installing workspace handlers.");
 
+    let currentDesktopId = workspace.currentDesktop.id;
+
+    // Removing a dedicated desktop restores its window on an unmanaged desktop.
+    workspace.desktopsChanged.connect(function() {
+
+        const previousDesktopId = currentDesktopId;
+
+        for (const [windowId, state] of [...savedData])
+        {
+            if (!state.dedicatedDesktop ||
+                workspace.desktops.some(desktop => desktop.id === state.dedicatedDesktop.id))
+                continue;
+
+            const wasCurrent = state.dedicatedDesktop.id === previousDesktopId;
+            state.dedicatedDesktop = null;
+            state.maximizedMode = 0;
+            ++state.moveGeneration;
+
+            const window = workspace.windowList().find(window => window.internalId === windowId);
+
+            if (window)
+            {
+                // Wayland may still report fullscreen while restore signals arrive.
+                state.transitioning = true;
+                try
+                {
+                    const desktop = workspace.desktops[getUnmanagedDesktopNumber()];
+                    window.onAllDesktops = false;
+                    window.desktops = [desktop];
+                    if (wasCurrent)
+                        workspace.currentDesktop = desktop;
+                    window.fullScreen = false;
+                    window.setMaximize(false, false);
+                }
+                finally
+                {
+                    state.transitioning = false;
+                    state.needsEvaluation = false;
+                }
+            }
+
+            if (enablePanelVisibility)
+                updatePanelVisibility();
+        }
+
+        // Nested desktop creation must still see the original active owner.
+        currentDesktopId = workspace.currentDesktop.id;
+
+    });
+
     //
     // Existing windows
     //
@@ -776,16 +878,14 @@ function install()
         // Move unrelated windows from the
         // dedicated desktop to an unmanaged desktop.
         //
-        const newDesktop = workspace.desktops[getUnmanagedDesktopNumber()];
-
-        if (workspace.currentDesktop !== newDesktop &&
-            isManagedDesktop(workspace.currentDesktop) &&
+        if (isManagedDesktop(workspace.currentDesktop) &&
             !sameClassDesktop(window) &&
             exclusiveDesktops)
         {
             logWindow(window,
                 "Moving unrelated window to unmanaged desktop.");
 
+            const newDesktop = workspace.desktops[getUnmanagedDesktopNumber()];
             window.desktops = [newDesktop];
 
             workspace.currentDesktop = newDesktop;
@@ -820,14 +920,16 @@ function install()
 
     });
 
-    if (enablePanelVisibility)
-    {
-       workspace.currentDesktopChanged.connect(function() {
+    workspace.currentDesktopChanged.connect(function() {
 
+        // Keep the removed desktop's id until desktopsChanged handles its owner.
+        if (workspace.desktops.some(desktop => desktop.id === currentDesktopId))
+            currentDesktopId = workspace.currentDesktop.id;
+
+        if (enablePanelVisibility)
             updatePanelVisibility();
 
-        });
-    }
+    });
 
     log("Workspace handlers installed.");
 }
