@@ -16,10 +16,6 @@ Imitates the way macOS handles maximized and full-screened windows.
 * **Context Menu Safety**: Popup menus and context menus (e.g., Dolphin's right-click menu) stay on their current desktop to prevent KWin crashes.
 * **Skip List Support**: Applications in the skip list are exempt from all rules and can open freely on any desktop.
 
-The Pager widget's **Remove Virtual Desktop** menu removes the last desktop, regardless of the tile clicked. Use Overview or **System Settings → Virtual Desktops** to remove a specific desktop.
-
-Known limitation: Removing the last regular desktop can move its ordinary windows onto another application's dedicated desktop. This pre-existing behavior is separate from restoring a window whose managed desktop was removed; keep a regular desktop available for ordinary windows.
-
 ### Behavior Logic:
 1. When a window is maximized, a new virtual desktop is created after the current one, and the window is moved to it
 2. The new virtual desktop displays only that maximized window and its related dialogs/toolbars
