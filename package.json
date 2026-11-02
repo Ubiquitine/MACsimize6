@@ -1,0 +1,8 @@
+{
+  "name": "macsimize6",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "test": "node --test --test-isolation=none tests/*.test.cjs"
+  }
+}
