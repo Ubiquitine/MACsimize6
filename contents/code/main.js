@@ -336,10 +336,19 @@ function isManagedDesktop(desktop)
 function createManagedDesktop(window)
 {
     const index = getNextDesktopNumber();
+    const existingIds = new Set(workspace.desktops.map(desktop => desktop.id));
 
     workspace.createDesktop(index, window.caption.toString());
 
-    return workspace.desktops[index];
+    // KWin silently refuses to create a desktop once its limit is reached.
+    // Whatever sits at `index` then is somebody else's desktop, so only
+    // accept a desktop that did not exist before the call.
+    const isNew = desktop => desktop && !existingIds.has(desktop.id);
+
+    if (isNew(workspace.desktops[index]))
+        return workspace.desktops[index];
+
+    return workspace.desktops.find(isNew) || null;
 }
 
 function removeManagedDesktop(desktop)
@@ -437,6 +446,12 @@ function moveToNewDesktop(window)
         state.resourceClass = getWindowClass(window);
 
         const desktop = createManagedDesktop(window);
+
+        if (!desktop)
+        {
+            logWindow(window, "Could not create a dedicated desktop.");
+            return;
+        }
 
         state.dedicatedDesktop = desktop;
 

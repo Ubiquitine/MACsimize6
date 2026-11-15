@@ -214,6 +214,29 @@ test("desktop creation failure never restores onto another app's desktop", () =>
     assert.equal(second.maximizeMode, 3);
 });
 
+for (const moveToLast of [false, true])
+{
+    test(`a window stays put when its dedicated desktop cannot be created (moveToLast=${moveToLast})`, () => {
+        const config = { moveToLast };
+        const h = setup(0, false, config), w = h.addWindow("app");
+        const regular = h.workspace.currentDesktop;
+        h.workspace.createDesktop(1, "Another user desktop");
+        const other = h.workspace.desktops[1];
+        config.desktopLimit = h.workspace.desktops.length;
+        w.setMaximize(true, true);
+        assert.equal(w.desktops[0], regular, "The window must not move onto an existing desktop");
+        assert.equal(h.workspace.currentDesktop, regular);
+        w.setMaximize(false, false);
+        assert.deepEqual(h.workspace.desktops, [regular, other], "User desktops must survive the restore");
+        delete config.desktopLimit;
+        w.setMaximize(true, true);
+        assert.equal(h.workspace.desktops.length, 3, "Management resumes once a desktop can be created");
+        assert.equal(w.desktops[0], h.workspace.currentDesktop);
+        w.close();
+        assert.deepEqual(h.workspace.desktops, [regular, other]);
+    });
+}
+
 test("manual removal during animation finishes on a surviving desktop", () => {
     const h = setup(), w = h.addWindow("first");
     w.setMaximize(true, true);
