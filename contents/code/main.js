@@ -697,13 +697,17 @@ function installWindowHandlers(window)
             maximizedStateChanged(window, mode);
 
         });
-
-        window.minimizedChanged.connect(function() {
-
-            minimizedStateChanged(window);
-
-        });
     }
+
+    //
+    // Minimization applies to fullscreen windows as well, so it must not
+    // depend on maximize handling.
+    //
+    window.minimizedChanged.connect(function() {
+
+        minimizedStateChanged(window);
+
+    });
 
     //
     // Fullscreen
