@@ -150,6 +150,7 @@ function setup(animationTime = 700, asyncFullscreen = false, config = {})
     return {
         workspace, addWindow, panelCalls,
         get locked() { return vm.runInContext("Boolean(panelVisibilityLock)", context); },
+        get pendingTimers() { return vm.runInContext("pendingTimers.size", context); },
         step() { assert.ok(timers.length); timers.shift()(); },
         flush() { while (timers.length) timers.shift()(); }
     };
@@ -658,3 +659,15 @@ for (const delay of [0, 700])
         assert.equal(h.workspace.desktops.length, 1);
     });
 }
+
+test("animation timers stay referenced until they fire", () => {
+    const h = setup(), w = h.addWindow("app");
+    w.setMaximize(true, true);
+    assert.equal(h.pendingTimers, 1, "An unreferenced QTimer may be garbage-collected before it fires");
+    h.flush();
+    assert.equal(h.pendingTimers, 0, "Fired timers must be released");
+    w.setMaximize(false, false);
+    assert.equal(h.pendingTimers, 1);
+    h.flush();
+    assert.equal(h.pendingTimers, 0);
+});

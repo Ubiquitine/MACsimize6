@@ -51,6 +51,13 @@ function logWindow(window, message)
 const savedData = new Map();
 const pendingDesktopRemovals = new Set();
 
+// A QTimer referenced only by a local variable can be garbage-collected
+// before it fires, so pending timers are kept here until their callback ran.
+// They are keyed by id so the timeout handler does not have to capture the
+// timer itself, which would keep it alive forever through its own connection.
+const pendingTimers = new Map();
+let nextTimerId = 0;
+
 //
 // Windows to ignore
 //
@@ -297,10 +304,17 @@ function delayedCall(delay, fn)
 {
     if (delay)
     {
-        let timer = new QTimer();
+        const timer = new QTimer();
+        const timerId = ++nextTimerId;
+        pendingTimers.set(timerId, timer);
         timer.interval = delay;
         timer.singleShot = true;
-        timer.timeout.connect(fn);
+        timer.timeout.connect(function() {
+
+            pendingTimers.delete(timerId);
+            fn();
+
+        });
         timer.start();
     }
     else
