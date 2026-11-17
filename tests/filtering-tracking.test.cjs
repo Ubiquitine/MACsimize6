@@ -305,6 +305,7 @@ test("the dedicated desktop is renamed while the window is maximized then cleane
     h.flush();
     assert.equal(h.workspace.desktops.length, 1, "Closing removes the dedicated desktop");
 });
+
 //
 // 8) Initial maximize state of newly added windows
 //
