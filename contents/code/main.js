@@ -341,8 +341,6 @@ function createManagedDesktop(window)
     workspace.createDesktop(index, window.caption.toString());
 
     // KWin silently refuses to create a desktop once its limit is reached.
-    // Whatever sits at `index` then is somebody else's desktop, so only
-    // accept a desktop that did not exist before the call.
     const isNew = desktop => desktop && !existingIds.has(desktop.id);
 
     if (isNew(workspace.desktops[index]))
