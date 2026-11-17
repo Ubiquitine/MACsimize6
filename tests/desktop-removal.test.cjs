@@ -124,6 +124,7 @@ function setup(animationTime = 700, asyncFullscreen = false, config = {})
                 else apply();
             },
             maximizedAboutToChange: signal(), minimizedChanged: signal(),
+            interactiveMoveResizeStarted: signal(), interactiveMoveResizeFinished: signal(), move: false,
             fullScreenChanged: signal(), captionChanged: signal(), closed: signal(),
             get desktops() { return desktops; },
             set desktops(value) {
@@ -155,6 +156,143 @@ function setup(animationTime = 700, asyncFullscreen = false, config = {})
         flush() { while (timers.length) timers.shift()(); }
     };
 }
+
+function startDrag(w)
+{
+    w.move = true;
+    w.interactiveMoveResizeStarted.emit();
+    w.setMaximize(false, false);
+}
+
+function finishDrag(w, maximizeFirst)
+{
+    w.move = false;
+    if (maximizeFirst) w.setMaximize(true, true);
+    w.interactiveMoveResizeFinished.emit();
+    if (!maximizeFirst) w.setMaximize(true, true);
+}
+
+for (const occupied of [false, true])
+for (const maximizeFirst of [false, true])
+{
+    test(`drop from dedicated desktop: occupied=${occupied}, maximize first=${maximizeFirst}`, () => {
+        const h = setup(), ws = h.workspace, target = ws.currentDesktop;
+        if (occupied) h.addWindow("other");
+        const w = h.addWindow("app");
+        w.setMaximize(true, true);
+        h.flush();
+        const source = ws.currentDesktop;
+        startDrag(w);
+        assert.ok(ws.desktops.includes(source));
+        ws.currentDesktop = target;
+        w.desktops = [target];
+        finishDrag(w, maximizeFirst);
+        h.flush();
+        assert.ok(!ws.desktops.includes(source));
+        assert.equal(w.maximizeMode, 3);
+        assert.equal(w.desktops[0] === target, !occupied);
+        assert.equal(ws.desktops.length, occupied ? 2 : 1);
+    });
+}
+
+function dragToDesktop(h, w, desktop, maximizeFirst)
+{
+    startDrag(w);
+    h.workspace.currentDesktop = desktop;
+    w.desktops = [desktop];
+    if (maximizeFirst === undefined)
+    {
+        w.move = false;
+        w.interactiveMoveResizeFinished.emit();
+    }
+    else finishDrag(w, maximizeFirst);
+    h.flush();
+}
+
+test("dragging a regular window does not change how it maximizes later", () => {
+    const h = setup(), ws = h.workspace;
+    ws.createDesktop(1, "D2");
+    const d2 = ws.desktops[1], w = h.addWindow("app");
+    dragToDesktop(h, w, d2);
+    assert.deepEqual(w.desktops, [d2]);
+    w.setMaximize(true, true);
+    h.flush();
+    assert.equal(ws.desktops.length, 3, "A later maximize still gets a dedicated desktop");
+    assert.notEqual(w.desktops[0], d2);
+});
+
+test("a maximized window dropped unmaximized gets a dedicated desktop when maximized later", () => {
+    const h = setup(), ws = h.workspace, regular = ws.currentDesktop, w = h.addWindow("app");
+    w.setMaximize(true, true);
+    h.flush();
+    dragToDesktop(h, w, regular);
+    assert.deepEqual(ws.desktops, [regular]);
+    w.setMaximize(true, true);
+    h.flush();
+    assert.equal(ws.desktops.length, 2);
+    assert.notEqual(w.desktops[0], regular);
+});
+
+for (const maximizeFirst of [false, true])
+{
+    test(`an empty drop target becomes the dedicated desktop (maximize first=${maximizeFirst})`, () => {
+        const h = setup(), ws = h.workspace, home = ws.currentDesktop;
+        h.addWindow("other");
+        const w = h.addWindow("app");
+        w.setMaximize(true, true);
+        h.flush();
+        const dedicated = ws.currentDesktop;
+        ws.createDesktop(2, "empty");
+        const empty = ws.desktops[2];
+        dragToDesktop(h, w, empty, maximizeFirst);
+        assert.deepEqual(ws.desktops, [home, empty], "The old dedicated desktop is removed, no new one is created");
+        assert.ok(!ws.desktops.includes(dedicated));
+        assert.deepEqual(w.desktops, [empty]);
+        assert.equal(empty.name, "app", "The adopted desktop is named like a dedicated one");
+        const intruder = h.addWindow("intruder");
+        h.flush();
+        assert.deepEqual(intruder.desktops, [home], "The adopted desktop is exclusive");
+        ws.currentDesktop = empty;
+        w.setMaximize(false, false);
+        h.flush();
+        assert.deepEqual(ws.desktops, [home], "Restoring removes the adopted desktop");
+        assert.deepEqual(w.desktops, [home]);
+    });
+}
+
+test("a drop target holding a minimized window is not adopted", () => {
+    const h = setup(), ws = h.workspace, home = ws.currentDesktop;
+    h.addWindow("other");
+    const w = h.addWindow("app");
+    w.setMaximize(true, true);
+    h.flush();
+    ws.createDesktop(2, "target");
+    const target = ws.desktops[2];
+    ws.currentDesktop = target;
+    const hidden = h.addWindow("hidden");
+    hidden.minimized = true;
+    ws.currentDesktop = w.desktops[0];
+    dragToDesktop(h, w, target, false);
+    assert.equal(ws.desktops.length, 3);
+    assert.ok(![home, target].includes(w.desktops[0]), "The window gets a new dedicated desktop");
+    assert.deepEqual(hidden.desktops, [target]);
+});
+
+test("cancelled drag preserves the original dedicated desktop", () => {
+    const h = setup(), ws = h.workspace, regular = ws.currentDesktop, w = h.addWindow("app");
+    w.setMaximize(true, true);
+    h.flush();
+    const dedicated = ws.currentDesktop;
+    startDrag(w);
+    ws.currentDesktop = regular;
+    w.desktops = [regular];
+    ws.currentDesktop = dedicated;
+    w.desktops = [dedicated];
+    finishDrag(w, false);
+    h.flush();
+    assert.deepEqual(ws.desktops, [regular, dedicated]);
+    assert.deepEqual(w.desktops, [dedicated]);
+});
 
 for (const delay of [0, 700])
 {
