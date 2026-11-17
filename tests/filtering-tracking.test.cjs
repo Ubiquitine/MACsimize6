@@ -312,7 +312,6 @@ test("the dedicated desktop is renamed while the window is maximized then cleane
 test("a window that opens fullscreen returns to a regular desktop when it leaves fullscreen", () => {
     const h = setup();
     const regular = h.workspace.currentDesktop;
-    // A fullscreen window covers the maximize area without being maximized.
     const w = h.addWindow("video", { width: 1920, height: 1080, fullScreen: true });
     h.flush();
     assert.equal(h.workspace.desktops.length, 2, "The fullscreen window gets a dedicated desktop");
