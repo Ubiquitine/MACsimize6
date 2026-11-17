@@ -4,6 +4,7 @@
 
 const handleFullscreen      = readConfig("handleFullscreen", true);
 const handleMaximized       = readConfig("handleMaximized", true);
+const closeEmptyAfterDrag   = readConfig("closeEmptyAfterDrag", false);
 const moveToLast            = readConfig("moveToLast", false);
 const enableIfOnlyOne       = readConfig("enableIfOnlyOne", false);
 const enablePanelVisibility = readConfig("enablePanelVisibility", false);
@@ -691,7 +692,7 @@ function watchDrag(window, state)
                 const ownedSource = state.dedicatedDesktop && state.dedicatedDesktop.id === drag.from;
                 if (ownedSource)
                     state.dedicatedDesktop = null;
-                if (ownedSource)
+                if (ownedSource || closeEmptyAfterDrag)
                     removeVacatedDesktop(drag.from);
             }
 
@@ -825,7 +826,7 @@ function installWindowHandlers(window)
 
     setTracked(window, true);
 
-    if (handleMaximized && window.interactiveMoveResizeStarted)
+    if ((handleMaximized || closeEmptyAfterDrag) && window.interactiveMoveResizeStarted)
         watchDrag(window, getState(window));
 
     //

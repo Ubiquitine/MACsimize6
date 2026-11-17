@@ -195,6 +195,62 @@ for (const maximizeFirst of [false, true])
     });
 }
 
+for (const maximizeFirst of [false, true])
+{
+    test(`D2 to occupied D4 creates a new desktop and removes D2 (maximize first=${maximizeFirst})`, () => {
+        const h = setup(700, false, { closeEmptyAfterDrag: true }), ws = h.workspace;
+        for (let i = 1; i < 4; ++i) ws.createDesktop(i, `D${i + 1}`);
+        const [d1, d2, d3, d4] = ws.desktops;
+        const windows = ws.desktops.map((d, i) => {
+            ws.currentDesktop = d;
+            return h.addWindow(`app${i}`);
+        });
+        const w = windows[1];
+        ws.currentDesktop = d2;
+        startDrag(w);
+        ws.currentDesktop = d4;
+        w.desktops = [d4];
+        finishDrag(w, maximizeFirst);
+        h.flush();
+        assert.ok(![d1, d2, d3, d4].includes(w.desktops[0]));
+        assert.deepEqual(ws.desktops, [d1, d3, d4, w.desktops[0]]);
+        assert.deepEqual(windows[3].desktops, [d4]);
+        assert.equal(ws.currentDesktop, w.desktops[0]);
+    });
+}
+
+for (const reason of ['incoming restore', 'minimized window', 'option disabled'])
+{
+    test(`vacated regular desktop survives: ${reason}`, () => {
+        const h = setup(700, false, { closeEmptyAfterDrag: reason !== 'option disabled' }), ws = h.workspace;
+        const target = ws.currentDesktop;
+        ws.createDesktop(1, 'source');
+        const source = ws.desktops[1];
+        ws.currentDesktop = source;
+        const w = h.addWindow('dragged');
+        const other = reason !== 'option disabled' && h.addWindow('background');
+        if (reason === 'incoming restore') { other.setMaximize(true, true); h.flush(); }
+        if (reason === 'minimized window') other.minimized = true;
+        ws.currentDesktop = source;
+        startDrag(w);
+        ws.currentDesktop = target;
+        w.desktops = [target];
+        w.move = false;
+        w.interactiveMoveResizeFinished.emit();
+        if (reason === 'incoming restore') {
+            ws.currentDesktop = other.desktops[0];
+            other.setMaximize(false, false);
+            assert.equal(ws.currentDesktop, source);
+            assert.equal(other.onAllDesktops, true);
+            ws.currentDesktop = target;
+        }
+        h.flush();
+        assert.deepEqual(ws.desktops, [target, source]);
+        assert.deepEqual(w.desktops, [target]);
+        if (other) assert.deepEqual(other.desktops, [source]);
+    });
+}
+
 function dragToDesktop(h, w, desktop, maximizeFirst)
 {
     startDrag(w);
