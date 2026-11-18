@@ -16,10 +16,18 @@
             },
             {
                 "Name": "Pk11"
+            },
+            {
+                "Name": "NiccoloN"
+            },
+            {
+                "Name": "mcdax"
             }
+
+
         ],
         "Id": "macsimize6",
-        "Version": "0.8.5",
+        "Version": "0.8.6",
         "License": "GPLv3",
         "EnabledByDefault": false
     },
