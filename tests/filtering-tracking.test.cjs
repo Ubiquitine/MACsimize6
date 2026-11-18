@@ -213,6 +213,20 @@ test("a non-skipped window is still managed when others are skipped", () => {
     assert.notEqual(normal.desktops[0], h.workspace.desktops[0]);
 });
 
+test("a window that can only go fullscreen is restored when minimized", () => {
+    const h = setup();
+    const regular = h.workspace.currentDesktop;
+    const w = h.addWindow("game", { maximizable: false });
+    w.fullScreen = true;
+    h.flush();
+    assert.equal(h.workspace.desktops.length, 2);
+    w.minimized = true;
+    w.minimizedChanged.emit();
+    h.flush();
+    assert.equal(h.workspace.desktops.length, 1, "Minimizing must release the dedicated desktop");
+    assert.equal(h.workspace.currentDesktop, regular);
+});
+
 //
 // 6) moveTransientToParentDesktop() transient routing
 //

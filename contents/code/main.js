@@ -711,13 +711,13 @@ function installWindowHandlers(window)
             maximizedStateChanged(window, mode);
 
         });
-
-        window.minimizedChanged.connect(function() {
-
-            minimizedStateChanged(window);
-
-        });
     }
+
+    window.minimizedChanged.connect(function() {
+
+        minimizedStateChanged(window);
+
+    });
 
     //
     // Fullscreen

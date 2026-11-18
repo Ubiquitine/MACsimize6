@@ -188,6 +188,21 @@ test("handleFullscreen=false keeps maximized handling enabled", () => {
     assert.notEqual(w.desktops[0], h.workspace.desktops[0]);
 });
 
+test("handleMaximized=false still restores a minimized fullscreen window", () => {
+    const h = setup({ handleMaximized: false }, 0), w = h.addWindow("video");
+    const regular = h.workspace.currentDesktop;
+    w.fullScreen = true;
+    assert.equal(h.workspace.desktops.length, 2);
+    w.minimized = true;
+    w.minimizedChanged.emit();
+    assert.equal(h.workspace.desktops.length, 1, "Minimizing must release the dedicated desktop");
+    assert.equal(h.workspace.currentDesktop, regular);
+    w.minimized = false;
+    w.minimizedChanged.emit();
+    assert.equal(h.workspace.desktops.length, 2, "Unminimizing a fullscreen window manages it again");
+    assert.equal(w.desktops[0], h.workspace.currentDesktop);
+});
+
 test("both disabled means a maximized fullscreen window never moves", () => {
     const h = setup({ handleFullscreen: false, handleMaximized: false });
     const regular = h.workspace.currentDesktop;
