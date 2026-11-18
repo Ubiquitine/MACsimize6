@@ -4,6 +4,7 @@
 
 const handleFullscreen      = readConfig("handleFullscreen", true);
 const handleMaximized       = readConfig("handleMaximized", true);
+const closeEmptyAfterDrag   = readConfig("closeEmptyAfterDrag", false);
 const moveToLast            = readConfig("moveToLast", false);
 const enableIfOnlyOne       = readConfig("enableIfOnlyOne", false);
 const enablePanelVisibility = readConfig("enablePanelVisibility", false);
@@ -110,6 +111,9 @@ function getState(window)
             dedicatedDesktop: null,
 
             moveGeneration: 0,
+            moveDestinationId: null,
+            drag: null,
+            dropDesktopId: null,
 
             transitioning: false,
 
@@ -382,6 +386,7 @@ function moveToDesktop(window, newDesktop, oldDesktop) {
     const state = getState(window);
     const generation = ++state.moveGeneration;
     const newDesktopId = newDesktop.id;
+    state.moveDestinationId = newDesktopId;
     const oldDesktopId = oldDesktop ? oldDesktop.id : null;
 
     if (oldDesktopId)
@@ -418,6 +423,8 @@ function moveToDesktop(window, newDesktop, oldDesktop) {
 
                 window.onAllDesktops = false;
                 window.desktops = [destination];
+                if (state.moveGeneration === generation)
+                    state.moveDestinationId = null;
             }
         }
 
@@ -461,6 +468,22 @@ function moveToNewDesktop(window)
 
     try
     {
+        const dropDesktop = adoptableDropDesktop(window, state);
+
+        if (dropDesktop)
+        {
+            logWindow(window, "Adopting the drop target as dedicated desktop.");
+
+            state.resourceClass = getWindowClass(window);
+            state.dedicatedDesktop = dropDesktop;
+            updateDedicatedDesktopName(window);
+
+            if (enablePanelVisibility)
+                updatePanelVisibility();
+
+            return;
+        }
+
         state.resourceClass = getWindowClass(window);
 
         const desktop = createManagedDesktop(window);
@@ -597,9 +620,115 @@ function moveTransientToParentDesktop(window)
 // Window evaluation
 //
 
+function hasIncomingWindow(desktop)
+{
+    for (const state of savedData.values())
+        if (state.moveDestinationId === desktop.id)
+            return true;
+    return false;
+}
+
+function isOnDesktop(window, desktopId)
+{
+    return window.desktops.some(desktop => desktop.id === desktopId);
+}
+
+// Minimized windows count: a desktop holding one is not vacant.
+function isDesktopVacant(id, except)
+{
+    return !workspace.windowList().some(w =>
+        (!except || w.internalId !== except.internalId) &&
+        !w.desktopWindow &&
+        !w.dock &&
+        isOnDesktop(w, id));
+}
+
+function removeVacatedDesktop(id)
+{
+    const desktop = workspace.desktops.find(d => d.id === id);
+
+    if (!desktop ||
+        workspace.desktops.length < 2 ||
+        workspace.currentDesktop.id === id ||
+        isManagedDesktop(desktop) ||
+        hasIncomingWindow(desktop))
+    {
+        return;
+    }
+
+    if (isDesktopVacant(id))
+        workspace.removeDesktop(desktop);
+}
+
+//
+// Returns the desktop a maximized window was just dropped on if that
+// desktop can become the window's dedicated desktop, otherwise null.
+//
+function adoptableDropDesktop(window, state)
+{
+    if (state.dropDesktopId === null || window.desktops.length !== 1)
+        return null;
+
+    const desktop = window.desktops[0];
+
+    if (desktop.id !== state.dropDesktopId ||
+        isManagedDesktop(desktop) ||
+        hasIncomingWindow(desktop))
+    {
+        return null;
+    }
+
+    return isDesktopVacant(desktop.id, window) ? desktop : null;
+}
+
+function watchDrag(window, state)
+{
+    window.interactiveMoveResizeStarted.connect(function() {
+        if (window.move && window.desktops.length === 1)
+            state.drag = {
+                from: window.desktops[0].id,
+                maximized: state.maximizedMode === MAXIMIZED
+            };
+    });
+
+    window.interactiveMoveResizeFinished.connect(function() {
+        const drag = state.drag;
+        if (!drag) return;
+        const id = window.internalId;
+        // KWin may send the final maximize signal on either side of drag-end.
+        delayedCall(1, function() {
+            if (savedData.get(id) !== state || state.drag !== drag) return;
+            state.drag = null;
+            const to = window.desktops.length === 1 ? window.desktops[0].id : null;
+            const moved = to !== null && to !== drag.from;
+
+            // A window that was maximized when the drag started may take
+            // over an empty drop target as its dedicated desktop.
+            state.dropDesktopId = moved && drag.maximized ? to : null;
+
+            if (moved)
+            {
+                const ownedSource = state.dedicatedDesktop && state.dedicatedDesktop.id === drag.from;
+                if (ownedSource)
+                    state.dedicatedDesktop = null;
+                if (ownedSource || closeEmptyAfterDrag)
+                    removeVacatedDesktop(drag.from);
+            }
+
+            evaluateWindow(window);
+
+            // The drop target only matters for this evaluation.
+            state.dropDesktopId = null;
+        });
+    });
+}
+
 function evaluateWindow(window)
 {
     const state = getState(window);
+
+    if (state.drag)
+        return;
 
     if (state.transitioning)
     {
@@ -715,6 +844,9 @@ function installWindowHandlers(window)
     logWindow(window, "Installing handlers.");
 
     setTracked(window, true);
+
+    if ((handleMaximized || closeEmptyAfterDrag) && window.interactiveMoveResizeStarted)
+        watchDrag(window, getState(window));
 
     //
     // Maximization
@@ -836,6 +968,7 @@ function install()
             state.dedicatedDesktop = null;
             state.maximizedMode = 0;
             ++state.moveGeneration;
+            state.moveDestinationId = null;
 
             const window = workspace.windowList().find(window => window.internalId === windowId);
 

@@ -126,6 +126,14 @@ will be created after the very last desktop.</string>
      <layout class="QVBoxLayout">
 
       <item>
+       <widget class="QCheckBox" name="kcfg_closeEmptyAfterDrag">
+        <property name="text">
+         <string>Remove the empty source desktop after dragging its last window to another desktop</string>
+        </property>
+       </widget>
+      </item>
+
+      <item>
        <widget class="QCheckBox" name="kcfg_exclusiveDesktops">
         <property name="text">
          <string>Dedicated desktops are exclusive</string>
