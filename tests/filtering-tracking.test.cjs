@@ -4,6 +4,7 @@
 //   5. shouldSkip() and the skip list
 //   6. moveTransientToParentDesktop() transient dialogs/toolbars
 //   7. updateDedicatedDesktopName()/createManagedDesktop() desktop naming
+//   8. initial maximize state of newly added windows
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const vm = require("node:vm");
@@ -93,7 +94,7 @@ function setup(config = {}, animationTime = 0)
     function addWindow(id, overrides = {})
     {
         let desktops = [workspace.currentDesktop], closed = false;
-        let maximizedMode = 0, fullScreen = false;
+        let maximizedMode = overrides.maximizedOnOpen ? 3 : 0, fullScreen = false;
         const base = {
             internalId: id, caption: id, resourceClass: id, normalWindow: true,
             maximizable: true, fullScreenable: true, width: 800, height: 600,
@@ -133,6 +134,8 @@ function setup(config = {}, animationTime = 0)
                 closed = true;
             }
         }, base, overrides);
+        // KWin before 6.3 does not expose Window.maximizeMode to scripts.
+        if (overrides.noMaximizeMode) delete window.maximizeMode;
         windows.push(window);
         workspace.windowAdded.emit(window);
         return window;
@@ -315,4 +318,72 @@ test("the dedicated desktop is renamed while the window is maximized then cleane
     w.close();
     h.flush();
     assert.equal(h.workspace.desktops.length, 1, "Closing removes the dedicated desktop");
+});
+
+//
+// 8) Initial maximize state of newly added windows
+//
+
+test("a window that opens fullscreen returns to a regular desktop when it leaves fullscreen", () => {
+    const h = setup();
+    const regular = h.workspace.currentDesktop;
+    const w = h.addWindow("video", { width: 1920, height: 1080, fullScreen: true });
+    h.flush();
+    assert.equal(h.workspace.desktops.length, 2, "The fullscreen window gets a dedicated desktop");
+    assert.notEqual(w.desktops[0], regular);
+    w.fullScreen = false;
+    h.flush();
+    assert.equal(h.workspace.desktops.length, 1, "Leaving fullscreen must release the dedicated desktop");
+    assert.equal(w.desktops[0], regular);
+});
+
+test("a window that merely fills the work area is not treated as maximized", () => {
+    const h = setup();
+    const regular = h.workspace.currentDesktop;
+    const w = h.addWindow("big", { width: 1920, height: 1080 });
+    h.flush();
+    assert.equal(h.workspace.desktops.length, 1);
+    assert.equal(w.desktops[0], regular);
+});
+
+test("a window that opens maximized gets a dedicated desktop", () => {
+    const h = setup();
+    const regular = h.workspace.currentDesktop;
+    const w = h.addWindow("app", { width: 1920, height: 1080, maximizedOnOpen: true });
+    h.flush();
+    assert.equal(h.workspace.desktops.length, 2);
+    assert.notEqual(w.desktops[0], regular);
+    w.setMaximize(false, false);
+    h.flush();
+    assert.equal(h.workspace.desktops.length, 1);
+    assert.equal(w.desktops[0], regular);
+});
+
+test("without Window.maximizeMode a window that opens fullscreen is still released", () => {
+    const h = setup();
+    const regular = h.workspace.currentDesktop;
+    const w = h.addWindow("video", { width: 1920, height: 1080, fullScreen: true, noMaximizeMode: true });
+    h.flush();
+    assert.equal(h.workspace.desktops.length, 2);
+    w.fullScreen = false;
+    h.flush();
+    assert.equal(h.workspace.desktops.length, 1, "The geometry fallback must not count fullscreen as maximized");
+    assert.equal(w.desktops[0], regular);
+});
+
+test("without Window.maximizeMode a window that opens maximized is detected by its geometry", () => {
+    const h = setup();
+    const regular = h.workspace.currentDesktop;
+    const w = h.addWindow("app", { width: 1920, height: 1080, noMaximizeMode: true });
+    h.flush();
+    assert.equal(h.workspace.desktops.length, 2);
+    assert.notEqual(w.desktops[0], regular);
+});
+
+test("without Window.maximizeMode a regular-sized window stays unmanaged", () => {
+    const h = setup();
+    const w = h.addWindow("app", { noMaximizeMode: true });
+    h.flush();
+    assert.equal(h.workspace.desktops.length, 1);
+    assert.equal(w.desktops[0], h.workspace.desktops[0]);
 });

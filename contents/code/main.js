@@ -183,6 +183,12 @@ function setMaximizedMode(window, mode)
 
 function isWindowMaximized(window)
 {
+    if (typeof window.maximizeMode === "number")
+        return window.maximizeMode === MAXIMIZED;
+
+    if (window.fullScreen)
+        return false;
+
     const area = workspace.clientArea(KWin.MaximizeArea, window);
 
     return window.width + 1 >= area.width &&
