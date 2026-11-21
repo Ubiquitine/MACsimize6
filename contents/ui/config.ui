@@ -72,6 +72,14 @@ Automatically moves maximized or fullscreen windows to temporary virtual desktop
       </item>
 
       <item>
+       <widget class="QCheckBox" name="kcfg_reuseEmptyDesktop">
+        <property name="text">
+         <string>Use the current desktop as the dedicated desktop if the maximized window is alone on it</string>
+        </property>
+       </widget>
+      </item>
+
+      <item>
        <widget class="QCheckBox" name="kcfg_handleFullscreen">
         <property name="text">
          <string>Handle fullscreen windows</string>

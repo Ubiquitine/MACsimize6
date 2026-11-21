@@ -11,6 +11,9 @@
     <entry name="handleMaximized" type="bool">
       <default>true</default>
     </entry>
+    <entry name="reuseEmptyDesktop" type="bool">
+      <default>false</default>
+    </entry>
     <entry name="closeEmptyAfterDrag" type="bool">
       <default>false</default>
     </entry>

@@ -4,6 +4,7 @@
 
 const handleFullscreen      = readConfig("handleFullscreen", true);
 const handleMaximized       = readConfig("handleMaximized", true);
+const reuseEmptyDesktop     = readConfig("reuseEmptyDesktop", false);
 const closeEmptyAfterDrag   = readConfig("closeEmptyAfterDrag", false);
 const moveToLast            = readConfig("moveToLast", false);
 const enableIfOnlyOne       = readConfig("enableIfOnlyOne", false);
@@ -468,14 +469,14 @@ function moveToNewDesktop(window)
 
     try
     {
-        const dropDesktop = adoptableDropDesktop(window, state);
+        const ownDesktop = adoptableDesktop(window, state);
 
-        if (dropDesktop)
+        if (ownDesktop)
         {
-            logWindow(window, "Adopting the drop target as dedicated desktop.");
+            logWindow(window, "Adopting the current desktop as dedicated desktop.");
 
             state.resourceClass = getWindowClass(window);
-            state.dedicatedDesktop = dropDesktop;
+            state.dedicatedDesktop = ownDesktop;
             updateDedicatedDesktopName(window);
 
             if (enablePanelVisibility)
@@ -661,17 +662,20 @@ function removeVacatedDesktop(id)
 }
 
 //
-// Returns the desktop a maximized window was just dropped on if that
-// desktop can become the window's dedicated desktop, otherwise null.
+// Returns the window's current desktop if it can become the window's
+// dedicated desktop instead of creating a new one, otherwise null. That is
+// the case for an empty desktop a maximized window was just dropped on and,
+// with reuseEmptyDesktop, for any desktop the maximized window has to itself.
 //
-function adoptableDropDesktop(window, state)
+function adoptableDesktop(window, state)
 {
-    if (state.dropDesktopId === null || window.desktops.length !== 1)
+    if (window.desktops.length !== 1)
         return null;
 
     const desktop = window.desktops[0];
+    const reusable = reuseEmptyDesktop && !window.fullScreen;
 
-    if (desktop.id !== state.dropDesktopId ||
+    if ((!reusable && desktop.id !== state.dropDesktopId) ||
         isManagedDesktop(desktop) ||
         hasIncomingWindow(desktop))
     {

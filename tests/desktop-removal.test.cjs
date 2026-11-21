@@ -157,6 +157,59 @@ function setup(animationTime = 700, asyncFullscreen = false, config = {})
     };
 }
 
+test("reuseEmptyDesktop adopts a desktop the maximized window has to itself", () => {
+    const h = setup(700, false, { reuseEmptyDesktop: true }), ws = h.workspace, home = ws.currentDesktop;
+    h.addWindow("other");
+    ws.createDesktop(1, "D2");
+    const d2 = ws.desktops[1];
+    ws.currentDesktop = d2;
+    const w = h.addWindow("app");
+    w.setMaximize(true, true);
+    h.flush();
+    assert.deepEqual(ws.desktops, [home, d2], "No new desktop is created");
+    assert.deepEqual(w.desktops, [d2]);
+    assert.equal(d2.name, "app");
+    const intruder = h.addWindow("intruder");
+    h.flush();
+    assert.deepEqual(intruder.desktops, [home], "The adopted desktop is exclusive");
+    ws.currentDesktop = d2;
+    w.setMaximize(false, false);
+    h.flush();
+    assert.deepEqual(ws.desktops, [home], "Restoring removes the adopted desktop");
+    assert.deepEqual(w.desktops, [home]);
+});
+
+for (const reason of ["visible window", "minimized window", "fullscreen", "option disabled"])
+{
+    test(`reuseEmptyDesktop still creates a dedicated desktop: ${reason}`, () => {
+        const h = setup(700, false, { reuseEmptyDesktop: reason !== "option disabled" });
+        const ws = h.workspace, home = ws.currentDesktop, w = h.addWindow("app");
+        if (reason.endsWith("window"))
+        {
+            const other = h.addWindow("other");
+            if (reason === "minimized window") other.minimized = true;
+        }
+        if (reason === "fullscreen") w.fullScreen = true;
+        else w.setMaximize(true, true);
+        h.flush();
+        assert.equal(ws.desktops.length, 2);
+        assert.notEqual(w.desktops[0], home);
+    });
+}
+
+test("reuseEmptyDesktop on the only desktop restores onto a new regular desktop", () => {
+    const h = setup(700, false, { reuseEmptyDesktop: true }), ws = h.workspace, only = ws.currentDesktop;
+    const w = h.addWindow("app");
+    w.setMaximize(true, true);
+    h.flush();
+    assert.deepEqual(ws.desktops, [only]);
+    w.setMaximize(false, false);
+    h.flush();
+    assert.equal(ws.desktops.length, 1);
+    assert.ok(!ws.desktops.includes(only), "The adopted desktop is replaced by a regular one");
+    assert.deepEqual(w.desktops, ws.desktops);
+});
+
 function startDrag(w)
 {
     w.move = true;
