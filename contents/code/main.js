@@ -397,8 +397,14 @@ function moveToDesktop(window, newDesktop, oldDesktop) {
     if (!oldDesktop)
         ++panelVisibilityLock;
 
-    if (smoothAnimationTime)
-        window.onAllDesktops = true;
+    // Keep the window visible on both ends of the desktop switch animation.
+    // Putting it on all desktops instead would briefly show it in every
+    // pager entry.
+    if (smoothAnimationTime && !window.onAllDesktops)
+    {
+        const desktops = window.desktops.filter(desktop => desktop.id !== newDesktopId);
+        window.desktops = desktops.concat([newDesktop]);
+    }
 
     workspace.currentDesktop = newDesktop;
 

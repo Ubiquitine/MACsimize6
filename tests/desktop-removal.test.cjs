@@ -157,6 +157,25 @@ function setup(animationTime = 700, asyncFullscreen = false, config = {})
     };
 }
 
+for (const restore of [false, true])
+{
+    test(`during the animation the window is only on its source and target (restore=${restore})`, () => {
+        const h = setup(), ws = h.workspace, home = ws.currentDesktop;
+        ws.createDesktop(1, "D2");
+        const d2 = ws.desktops[1];
+        h.addWindow("other");
+        const w = h.addWindow("app");
+        w.setMaximize(true, true);
+        if (restore) { h.flush(); w.setMaximize(false, false); }
+        const dedicated = restore ? w.desktops.find(d => d !== home) : ws.currentDesktop;
+        assert.equal(w.onAllDesktops, false, "The window must not appear on every desktop");
+        assert.deepEqual(new Set(w.desktops), new Set([home, dedicated]));
+        assert.ok(!w.desktops.includes(d2));
+        h.flush();
+        assert.deepEqual(w.desktops, [restore ? home : dedicated]);
+    });
+}
+
 function startDrag(w)
 {
     w.move = true;
@@ -241,7 +260,8 @@ for (const reason of ['incoming restore', 'minimized window', 'option disabled']
             ws.currentDesktop = other.desktops[0];
             other.setMaximize(false, false);
             assert.equal(ws.currentDesktop, source);
-            assert.equal(other.onAllDesktops, true);
+            assert.equal(other.desktops.length, 2, "The restoring window is shown on its source and target only");
+            assert.ok(other.desktops.includes(source));
             ws.currentDesktop = target;
         }
         h.flush();
