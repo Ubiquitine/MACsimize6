@@ -10,6 +10,7 @@ Imitates the way macOS handles maximized and full-screened windows.
 * **Automatic Virtual Desktop Creation**: The script moves full-screened and/or (fully) maximized windows to a new virtual desktop.
 * **Desktop Restoration**: When a window is restored to regular state (not full-screened and not fully maximized), the script returns it to a regular desktop and removes the temporary virtual desktop.
 * **Dragging a maximized window**: Dragging a maximized window to another desktop is only evaluated once it is dropped. If it is maximized again on an empty regular desktop, that desktop becomes its dedicated desktop; on an occupied desktop it gets a new one.
+* **Reuse an empty desktop (optional)**: A window maximized on a desktop it has to itself does not get a new desktop; its current desktop becomes the dedicated one. It behaves like any other dedicated desktop, so restoring the window moves it to a regular desktop and removes this one. A desktop holding another window, including a minimized one, still leads to a new dedicated desktop. Fullscreen handling is unchanged. Off by default.
 * **Remove an empty drag source (optional)**: Dragging the last window off a regular desktop can remove that desktop. A minimized window or a pending move to that desktop keeps it alive. Off by default.
 * **Manual Desktop Removal**: Removing a dedicated desktop manually restores its window to normal size, exits fullscreen, and moves it to a regular desktop so other dedicated desktops stay exclusive.
 
